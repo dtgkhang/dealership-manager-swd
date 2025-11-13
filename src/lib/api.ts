@@ -1,6 +1,87 @@
 import { addDays, delay, nowISO } from "./utils";
 import type { CarModel, Delivery, DeliveryStatus, ManufacturerOrder, OrderStatus, Role, VehicleUnit, Voucher } from "./types";
 
+// Backend HTTP helper
+const ENV: any = (typeof import.meta !== 'undefined') ? (import.meta as any).env ?? {} : {};
+const API_BASE = ENV.VITE_API_BASE || ""; // empty = same-origin
+const USE_MOCK = ENV.VITE_USE_MOCK === '1';
+const useBackend = !USE_MOCK; // default: use backend
+
+export function getToken(): string | null {
+  return (typeof localStorage !== 'undefined') ? localStorage.getItem('token') : null;
+}
+
+export function setToken(token: string | null) {
+  if (typeof localStorage === 'undefined') return;
+  if (token) localStorage.setItem('token', token); else localStorage.removeItem('token');
+}
+
+export function getRoleFromToken(): 'MANAGER' | 'STAFF' | null {
+  const t = getToken();
+  if (!t) return null;
+  const parts = t.split('.');
+  if (parts.length !== 3) return null;
+  try {
+    const json = JSON.parse(atob(parts[1].replace(/-/g,'+').replace(/_/g,'/')));
+    const role = (json.role ?? json.authorities ?? json.auth ?? '').toString().toUpperCase();
+    if (role.includes('MANAGER')) return 'MANAGER';
+    if (role.includes('STAFF')) return 'STAFF';
+    return null;
+  } catch { return null; }
+}
+
+async function http(path: string, opts: RequestInit = {}) {
+  const token = getToken();
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(opts.headers as any || {}),
+  };
+  // Đừng gửi Authorization cho endpoint auth
+  if (token && !path.startsWith('/api/auth/')) headers['Authorization'] = `Bearer ${token}`;
+  const res = await fetch(`${API_BASE}${path}`, { ...opts, headers });
+  if (!res.ok) {
+    const text = await res.text().catch(()=>"");
+    console.error('API error', { path, status: res.status, body: text });
+    throw new Error(text || `HTTP ${res.status}`);
+  }
+  const ct = res.headers.get('content-type') || '';
+  if (ct.includes('application/json')) return res.json();
+  return res.text();
+}
+
+export async function login(email: string, password: string) {
+  if (!useBackend) {
+    // mock login
+    await delay(100);
+    const fake = { token: 'mock-token', email, tokenType: 'Bearer' } as any;
+    setToken(fake.token);
+    return fake;
+  }
+  const data = await http('/api/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ email, password })
+  });
+  setToken(data.token);
+  return data;
+}
+
+export async function register(input: { name: string; email: string; password: string; roleId?: number }) {
+  if (!useBackend) {
+    // mock register: succeed immediately
+    await delay(100);
+    return { success: true } as any;
+  }
+  const data = await http('/api/auth/register', {
+    method: 'POST',
+    body: JSON.stringify(input)
+  });
+  return data;
+}
+
+export function logout() {
+  setToken(null);
+}
+
 // In-memory DB (ẩn khỏi UI, dùng cho mock)
 const mockDB = (() => {
   let modelId = 1, orderId = 1, vehicleId = 1, voucherId = 1, deliveryId = 1;
@@ -92,20 +173,102 @@ export const ROLE_PERMS: Record<Role, string[]> = {
   STAFF: ["DELIVERY.CREATE","DELIVERY.COMPLETE"],
 };
 
+export const BACKEND_MODE = useBackend;
+
 export function useApi(role: Role) {
+  if (!useBackend) {
+    return {
+      listModels: async () => { await delay(80); return [...(mockDB as any).car_models]; },
+      listOrders: async () => { await delay(80); return [...(mockDB as any).manufacturer_orders]; },
+      listVehicles: async () => { await delay(80); return [...(mockDB as any).vehicle_units]; },
+      listVouchers: async () => { await delay(80); return [...(mockDB as any).vouchers]; },
+      listDeliveries: async () => { await delay(80); return [...(mockDB as any).deliveries]; },
+      createVoucher: async (args: any) => { if (!ROLE_PERMS[role].includes("VOUCHER.CREATE")) throw new Error("Không có quyền"); await delay(80); return (mockDB as any).createVoucher(args); },
+      createOrder: async (args: any) => { if (!ROLE_PERMS[role].includes("ORDER.CREATE")) throw new Error("Không có quyền"); await delay(80); return (mockDB as any).createOrder(args); },
+      updateOrderStatus: async (id: number, s: OrderStatus) => { if (!ROLE_PERMS[role].includes("ORDER.UPDATE_STATUS")) throw new Error("Không có quyền"); await delay(80); return (mockDB as any).updateOrderStatus(id,s); },
+      markVehicleArrived: async (id: number, vin?: string) => { if (!ROLE_PERMS[role].includes("VEHICLE.MARK_ARRIVED")) throw new Error("Không có quyền"); await delay(80); return (mockDB as any).markVehicleArrived(id, vin); },
+      setVehicleVIN: async (id: number, vin: string) => { if (!ROLE_PERMS[role].includes("VEHICLE.SET_VIN")) throw new Error("Không có quyền"); await delay(80); return (mockDB as any).setVehicleVIN(id, vin); },
+      createDelivery: async (args: any) => { if (!ROLE_PERMS[role].includes("DELIVERY.CREATE")) throw new Error("Không có quyền"); await delay(80); return (mockDB as any).createDelivery(args); },
+      completeDelivery: async (id: number) => { if (!ROLE_PERMS[role].includes("DELIVERY.COMPLETE")) throw new Error("Không có quyền"); await delay(80); return (mockDB as any).completeDelivery(id); },
+      computeVoucherDiscount: (v: Voucher, price?: number) => (mockDB as any).computeVoucherDiscount(v, price),
+    };
+  }
+
+  // Backend-backed API (only supported features)
   return {
-    listModels: async () => { await delay(80); return [...(mockDB as any).car_models]; },
-    listOrders: async () => { await delay(80); return [...(mockDB as any).manufacturer_orders]; },
-    listVehicles: async () => { await delay(80); return [...(mockDB as any).vehicle_units]; },
-    listVouchers: async () => { await delay(80); return [...(mockDB as any).vouchers]; },
-    listDeliveries: async () => { await delay(80); return [...(mockDB as any).deliveries]; },
-    createVoucher: async (args: any) => { if (!ROLE_PERMS[role].includes("VOUCHER.CREATE")) throw new Error("Không có quyền"); await delay(80); return (mockDB as any).createVoucher(args); },
-    createOrder: async (args: any) => { if (!ROLE_PERMS[role].includes("ORDER.CREATE")) throw new Error("Không có quyền"); await delay(80); return (mockDB as any).createOrder(args); },
-    updateOrderStatus: async (id: number, s: OrderStatus) => { if (!ROLE_PERMS[role].includes("ORDER.UPDATE_STATUS")) throw new Error("Không có quyền"); await delay(80); return (mockDB as any).updateOrderStatus(id,s); },
-    markVehicleArrived: async (id: number, vin?: string) => { if (!ROLE_PERMS[role].includes("VEHICLE.MARK_ARRIVED")) throw new Error("Không có quyền"); await delay(80); return (mockDB as any).markVehicleArrived(id, vin); },
-    setVehicleVIN: async (id: number, vin: string) => { if (!ROLE_PERMS[role].includes("VEHICLE.SET_VIN")) throw new Error("Không có quyền"); await delay(80); return (mockDB as any).setVehicleVIN(id, vin); },
-    createDelivery: async (args: any) => { if (!ROLE_PERMS[role].includes("DELIVERY.CREATE")) throw new Error("Không có quyền"); await delay(80); return (mockDB as any).createDelivery(args); },
-    completeDelivery: async (id: number) => { if (!ROLE_PERMS[role].includes("DELIVERY.COMPLETE")) throw new Error("Không có quyền"); await delay(80); return (mockDB as any).completeDelivery(id); },
-    computeVoucherDiscount: (v: Voucher, price?: number) => (mockDB as any).computeVoucherDiscount(v, price),
-  };
+    // Models
+    listModels: async () => {
+      const data = await http('/api/models');
+      return data;
+    },
+    // Vehicle units for inventory
+    listVehicles: async () => {
+      const data = await http('/api/vehicle-units');
+      return data;
+    },
+    markVehicleArrived: async (id: number) => {
+      const data = await http(`/api/vehicle-units/${id}/arrive`, { method: 'PATCH' });
+      return data;
+    },
+    setVehicleVIN: async (id: number, vin: string) => {
+      const data = await http(`/api/vehicle-units/${id}/vin?vin=${encodeURIComponent(vin)}`, { method: 'PATCH' });
+      return data;
+    },
+    listVouchers: async () => {
+      const data = await http('/api/vouchers');
+      return data;
+    },
+    computeVoucherDiscount: (_v: Voucher, _price?: number) => 0,
+
+    // Purchase Orders (PO)
+    listOrders: async () => {
+      const data = await http('/api/po');
+      return data;
+    },
+    createOrder: async (args: { order_no: string; eta_at_dealer?: string; note?: string; car_model_id?: number; quantity?: number; modelId?: number; }) => {
+      if (!ROLE_PERMS[role].includes("ORDER.CREATE")) throw new Error("Không có quyền");
+      const payload: any = { orderNo: args.order_no, etaAtDealer: args.eta_at_dealer, note: args.note, modelId: args.modelId ?? args.car_model_id, quantity: args.quantity };
+      const data = await http('/api/po', { method: 'POST', body: JSON.stringify(payload) });
+      return data;
+    },
+    updateOrderStatus: async (id: number, s: any) => {
+      if (!ROLE_PERMS[role].includes("ORDER.UPDATE_STATUS")) throw new Error("Không có quyền");
+      const data = await http(`/api/po/${id}/status?status=${encodeURIComponent(String(s))}`, { method: 'PUT' });
+      return data;
+    },
+
+    // Deliveries
+    listDeliveries: async () => {
+      const data = await http('/api/deliveries');
+      return data;
+    },
+    createDelivery: async (args: { orderId: number; vehicleUnitId?: number; customerName?: string; priceBefore?: number; voucherCode?: string; status?: string }) => {
+      if (!ROLE_PERMS[role].includes("DELIVERY.CREATE")) throw new Error("Không có quyền");
+      const data = await http('/api/deliveries', { method: 'POST', body: JSON.stringify(args) });
+      return data;
+    },
+    completeDelivery: async (id: number) => {
+      if (!ROLE_PERMS[role].includes("DELIVERY.COMPLETE")) throw new Error("Không có quyền");
+      const data = await http(`/api/deliveries/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status: 'Delivered' }) });
+      return data;
+    },
+
+    createVoucher: async (args: any) => {
+      if (!ROLE_PERMS[role].includes("VOUCHER.CREATE")) throw new Error("Không có quyền");
+      const payload: any = {
+        code: args.code,
+        type: args.type,
+        title: args.title,
+        minPrice: args.min_price,
+        maxDiscount: args.max_discount,
+        amount: args.amount,
+        percent: args.percent,
+        usableFrom: args.usable_from || undefined,
+        usableTo: args.usable_to || undefined,
+        stackable: !!args.stackable,
+      };
+      const data = await http('/api/vouchers', { method: 'POST', body: JSON.stringify(payload) });
+      return data;
+    },
+  } as any;
 }
