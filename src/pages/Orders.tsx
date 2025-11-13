@@ -13,6 +13,7 @@ export default function Orders({ api, can }: { api: ReturnType<typeof useApi>, c
   // Backend create PO payload
   const [form, setForm] = React.useState<{ order_no: string; eta_at_dealer: string; note?: string; car_model_id: number; quantity: number }>({ order_no: "", eta_at_dealer: "", note: "", car_model_id: 1, quantity: 1 });
   const [notice, setNotice] = React.useState<string | null>(null);
+  const [formErr, setFormErr] = React.useState<string | null>(null);
   const { data: models, reload: reloadModels } = useReloadable<any[]>(api.listModels, []);
   React.useEffect(()=>{ if (open) reloadModels(); }, [open]);
   const [addModelOpen, setAddModelOpen] = React.useState(false);
@@ -20,7 +21,7 @@ export default function Orders({ api, can }: { api: ReturnType<typeof useApi>, c
 
   return <div className="space-y-4">
     <div className="flex items-center justify-between">
-      <h2 className="text-lg font-semibold">Đơn đặt xe từ hãng (PO)</h2>
+      <h2 className="text-lg font-semibold">Đặt PO từ hãng</h2>
       <div className="flex items-center gap-2">
         <input className="rounded-xl border p-2 text-sm" placeholder="Tìm số PO hoặc ghi chú" value={q} onChange={e=>setQ(e.target.value)} />
         <select className="rounded-xl border p-2 text-sm" value={status} onChange={e=>setStatus(e.target.value)}>
@@ -30,7 +31,7 @@ export default function Orders({ api, can }: { api: ReturnType<typeof useApi>, c
           <option value="CONFIRMED">CONFIRMED</option>
           <option value="CANCELLED">CANCELLED</option>
         </select>
-        <Button className="bg-black text-white" onClick={()=>setOpen(true)} disabled={!can("ORDER.CREATE")}>Tạo PO</Button>
+      <Button variant="primary" onClick={()=>setOpen(true)} disabled={!can("ORDER.CREATE")}>Tạo PO</Button>
       </div>
     </div>
     <Card>
@@ -59,9 +60,15 @@ export default function Orders({ api, can }: { api: ReturnType<typeof useApi>, c
               <td className="p-2">{(o.etaAtDealer ?? o.eta_at_dealer ?? '').toString().split('T')[0]}</td>
               <td className="p-2">{o.note ?? ''}</td>
               <td className="p-2 space-x-2">
-                <Button onClick={async()=>{ await api.updateOrderStatus(o.id, 'SUBMITTED'); setNotice(`Đã gửi PO ${o.orderNo ?? o.id}`); reload(); }} disabled={!can("ORDER.UPDATE_STATUS")}>Gửi</Button>
-                <Button onClick={async()=>{ await api.updateOrderStatus(o.id, 'CONFIRMED'); setNotice(`Đã xác nhận PO ${o.orderNo ?? o.id}`); reload(); }} className="bg-green-600 text-white" disabled={!can("ORDER.UPDATE_STATUS")}>Xác nhận</Button>
-                <Button onClick={async()=>{ await api.updateOrderStatus(o.id, 'CANCELLED'); setNotice(`Đã hủy PO ${o.orderNo ?? o.id}`); reload(); }} className="bg-red-600 text-white" disabled={!can("ORDER.UPDATE_STATUS")}>Hủy</Button>
+                <Button onClick={async()=>{ await api.updateOrderStatus(o.id, 'SUBMITTED'); setNotice(`Đã gửi PO ${o.orderNo ?? o.id}`); reload(); }} disabled={!can("ORDER.UPDATE_STATUS") || (o.status==='SUBMITTED' || o.status==='CONFIRMED' || o.status==='CANCELLED')}>
+                  Gửi
+                </Button>
+                <Button variant="success" onClick={async()=>{ await api.updateOrderStatus(o.id, 'CONFIRMED'); setNotice(`Đã xác nhận PO ${o.orderNo ?? o.id}`); reload(); }} disabled={!can("ORDER.UPDATE_STATUS") || (o.status==='CONFIRMED' || o.status==='CANCELLED')}>
+                  Xác nhận
+                </Button>
+                <Button variant="danger" onClick={async()=>{ await api.updateOrderStatus(o.id, 'CANCELLED'); setNotice(`Đã hủy PO ${o.orderNo ?? o.id}`); reload(); }} disabled={!can("ORDER.UPDATE_STATUS") || (o.status==='CONFIRMED' || o.status==='CANCELLED')}>
+                  Hủy
+                </Button>
               </td>
             </tr>
           ))}
@@ -71,19 +78,24 @@ export default function Orders({ api, can }: { api: ReturnType<typeof useApi>, c
 
     <Modal open={open} onClose={()=>setOpen(false)} title="Tạo PO">
       <div className="space-y-3">
+        {formErr && <div className="rounded-lg bg-red-50 p-2 text-sm text-red-700">{formErr}</div>}
         <div className="grid grid-cols-2 gap-3">
-          <input className="w-full rounded-xl border p-2" placeholder="PO-2025-001" value={form.order_no} onChange={e=>setForm({...form, order_no: e.target.value})} />
+          <div>
+            <input className={`w-full rounded-xl border p-2 ${formErr && (!form.order_no || !form.order_no.trim()) ? 'border-red-500' : ''}`} placeholder="PO-2025-001" value={form.order_no} onChange={e=>setForm({...form, order_no: e.target.value})} />
+            {formErr && (!form.order_no || !form.order_no.trim()) && <div className="mt-1 text-xs text-red-600">Vui lòng nhập số PO</div>}
+          </div>
           <input className="w-full rounded-xl border p-2" type="date" value={form.eta_at_dealer?.split('T')[0] ?? ''} onChange={e=>setForm({...form, eta_at_dealer: e.target.value ? new Date(e.target.value).toISOString() : ''})} />
           <input className="w-full rounded-xl border p-2 col-span-2" placeholder="Ghi chú" value={form.note ?? ''} onChange={e=>setForm({...form, note: e.target.value})} />
         </div>
         <div className="grid grid-cols-3 gap-3">
           <div>
             <label className="text-xs">Model</label>
-            <select className="w-full rounded-xl border p-2" value={form.car_model_id} onChange={e=>setForm({...form, car_model_id: Number(e.target.value)})}>
+            <select className={`w-full rounded-xl border p-2 ${formErr && !form.car_model_id ? 'border-red-500' : ''}`} value={form.car_model_id} onChange={e=>setForm({...form, car_model_id: Number(e.target.value)})}>
               {(models ?? []).map((m:any) => (
                 <option key={m.id} value={m.id}>{(m.brand?.name ?? '')} {m.model} {(m.variant ?? '')}</option>
               ))}
             </select>
+            {formErr && !form.car_model_id && <div className="mt-1 text-xs text-red-600">Vui lòng chọn model</div>}
             {(!models || models.length===0) && <div className="mt-2 text-xs text-gray-500">Chưa có model. Tạo nhanh bên dưới.</div>}
             <div className="mt-2">
               <button type="button" className="text-xs underline" onClick={()=>setAddModelOpen(v=>!v)}>{addModelOpen ? 'Ẩn' : 'Thêm model nhanh'}</button>
@@ -94,7 +106,7 @@ export default function Orders({ api, can }: { api: ReturnType<typeof useApi>, c
                 <input className="rounded-xl border p-2 col-span-1" placeholder="Brand" value={newModel.brand} onChange={e=>setNewModel({...newModel, brand:e.target.value})} />
                 <input className="rounded-xl border p-2 col-span-1" type="number" placeholder="Giá" value={newModel.price} onChange={e=>setNewModel({...newModel, price: e.target.value===''? '': Number(e.target.value)})} />
                 <div className="col-span-3 flex justify-end">
-                  <Button className="bg-black text-white" onClick={async()=>{
+                  <Button variant="primary" onClick={async()=>{
                     try {
                       const created:any = await (api as any).createModel({ model: newModel.model.trim(), brand: newModel.brand.trim(), price: typeof newModel.price==='number'? newModel.price: undefined });
                       await reloadModels();
@@ -109,10 +121,22 @@ export default function Orders({ api, can }: { api: ReturnType<typeof useApi>, c
           </div>
           <div>
             <label className="text-xs">Số lượng</label>
-            <input className="w-full rounded-xl border p-2" type="number" value={form.quantity} onChange={e=>setForm({...form, quantity: Number(e.target.value) || 1})} />
+            <input className={`w-full rounded-xl border p-2 ${formErr && (!form.quantity || form.quantity <= 0) ? 'border-red-500' : ''}`} type="number" min={1} value={form.quantity} onChange={e=>setForm({...form, quantity: Number(e.target.value) || 1})} />
+            {formErr && (!form.quantity || form.quantity <= 0) && <div className="mt-1 text-xs text-red-600">Số lượng phải &gt; 0</div>}
           </div>
         </div>
-        <div className="flex justify-end gap-2"><Button onClick={()=>setOpen(false)}>Hủy</Button><Button className="bg-black text-white" onClick={async()=>{ try { await (api as any).createOrder({ ...form, modelId: form.car_model_id }); setOpen(false); setNotice(`Tạo PO ${form.order_no} thành công`); reload(); } catch(e:any){ alert(e?.message || 'Tạo PO thất bại'); } }}>Tạo</Button></div>
+        <div className="flex justify-end gap-2"><Button onClick={()=>setOpen(false)}>Hủy</Button><Button variant="primary" onClick={async()=>{
+          try {
+            setFormErr(null);
+            if (!form.order_no || !form.order_no.trim()) { setFormErr('Vui lòng nhập số PO'); return; }
+            if (!form.car_model_id) { setFormErr('Vui lòng chọn model'); return; }
+            if (!form.quantity || form.quantity <= 0) { setFormErr('Số lượng phải > 0'); return; }
+            await (api as any).createOrder({ ...form, modelId: form.car_model_id });
+            setOpen(false);
+            setNotice(`Tạo PO ${form.order_no} thành công`);
+            reload();
+          } catch(e:any){ setFormErr(e?.message || 'Tạo PO thất bại'); }
+        }}>Tạo</Button></div>
       </div>
     </Modal>
   </div>;

@@ -4,6 +4,7 @@ import { useReloadable } from "../hooks/useReloadable";
 import type { VehicleUnit } from "../lib/types";
 import { humanVehicleStatus, currency } from "../lib/utils";
 import { useApi, BACKEND_MODE } from "../lib/api";
+//
 
 export default function Inventory({ api, can }: { api: ReturnType<typeof useApi>, can: (p:string)=>boolean }) {
   const { loading, data, error, reload } = useReloadable(api.listVehicles, []);
@@ -13,6 +14,7 @@ export default function Inventory({ api, can }: { api: ReturnType<typeof useApi>
   const [status, setStatus] = React.useState<string|"">("");
   const [vinInput, setVinInput] = React.useState(""); const [selected, setSelected] = React.useState<VehicleUnit | any | null>(null);
   const [openVIN, setOpenVIN] = React.useState(false); const [openDeliver, setOpenDeliver] = React.useState(false);
+  const [vinErr, setVinErr] = React.useState<string | null>(null);
 
   return <div className="space-y-4">
     <div className="flex items-center justify-between">
@@ -43,12 +45,12 @@ export default function Inventory({ api, can }: { api: ReturnType<typeof useApi>
                 <td className="p-2">#{v.id}</td>
                 <td className="p-2 font-mono">{v.vin ?? <span className="text-gray-400">(chưa có)</span>}</td>
                 <td className="p-2">{(()=>{ const m = modelById.get(v.car_model_id); return m ? `${m.brand} ${m.model} ${m.variant ?? ""}` : v.car_model_id; })()}</td>
-                <td className="p-2"><Badge className="bg-gray-100">{humanVehicleStatus(v.status)}</Badge></td>
+                <td className="p-2">{renderStatus(v.status)}</td>
                 <td className="p-2">{v.arrived_at?.split("T")[0] ?? ""}</td>
                 <td className="p-2 space-x-2">
-                  <Button onClick={()=>api.markVehicleArrived(v.id).then(reload)} className="bg-blue-600 text-white" disabled={!can("VEHICLE.MARK_ARRIVED")}>Đánh dấu về đại lý</Button>
+                  <Button variant="info" onClick={()=>api.markVehicleArrived(v.id).then(reload)} disabled={!can("VEHICLE.MARK_ARRIVED")}>Đánh dấu về đại lý</Button>
                   <Button onClick={()=>{ setSelected(v); setVinInput(v.vin ?? ""); setOpenVIN(true); }} disabled={!can("VEHICLE.SET_VIN")}>Gán VIN</Button>
-                  <Button onClick={()=>{ setSelected(v); setOpenDeliver(true); }} className="bg-black text-white" disabled={v.status!=="AT_DEALER" || !can("DELIVERY.CREATE")}>Lập phiếu giao</Button>
+                  <Button variant="primary" onClick={()=>{ setSelected(v); setOpenDeliver(true); }} disabled={v.status!=="AT_DEALER" || !can("DELIVERY.CREATE")}>Lập phiếu giao</Button>
                 </td>
               </tr>
             ))}
@@ -68,7 +70,7 @@ export default function Inventory({ api, can }: { api: ReturnType<typeof useApi>
                 <td className="p-2">#{v.id}</td>
                 <td className="p-2 font-mono">{v.vin ?? <span className="text-gray-400">(chưa có)</span>}</td>
                 <td className="p-2">{v.model?.model ?? v.model?.id ?? ''}</td>
-                <td className="p-2">{v.status ?? ''}</td>
+                <td className="p-2">{renderStatus(v.status)}</td>
                 <td className="p-2">{v.arrivedAt?.split('T')[0] ?? ''}</td>
                 <td className="p-2 space-x-2">
                   <Button onClick={()=>api.markVehicleArrived(v.id).then(reload)} className="bg-blue-600 text-white" disabled={!can("VEHICLE.MARK_ARRIVED")}>Đánh dấu về đại lý</Button>
@@ -85,8 +87,19 @@ export default function Inventory({ api, can }: { api: ReturnType<typeof useApi>
     {(!BACKEND_MODE ? true : true) && <>
       <Modal open={openVIN} onClose={()=>setOpenVIN(false)} title={`Gán VIN cho xe #${selected?.id}`}>
         <div className="space-y-3">
-          <input className="w-full rounded-xl border p-2 font-mono" placeholder="JTXXXXXXXXXXXXXXX" value={vinInput} onChange={e=>setVinInput(e.target.value)} />
-          <div className="flex justify-end gap-2"><Button onClick={()=>setOpenVIN(false)}>Hủy</Button><Button className="bg-black text-white" onClick={async()=>{ if(selected){ await api.setVehicleVIN(selected.id, vinInput); setOpenVIN(false); reload(); } }}>Lưu VIN</Button></div>
+          {vinErr && <div className="rounded-lg bg-red-50 p-2 text-sm text-red-700">{vinErr}</div>}
+          <input className="w-full rounded-xl border p-2 font-mono" placeholder="JTXXXXXXXXXXXXXXX" value={vinInput} onChange={e=>setVinInput(e.target.value.toUpperCase())} />
+          <div className="flex justify-end gap-2"><Button onClick={()=>setOpenVIN(false)}>Hủy</Button><Button variant="primary" onClick={async()=>{
+            try {
+              setVinErr(null);
+              if (!selected) return;
+              const vin = (vinInput || '').trim().toUpperCase();
+              const ok = /^[A-HJ-NPR-Z0-9]{11,17}$/.test(vin);
+              if (!ok) { setVinErr('VIN không hợp lệ (chỉ A-HJ-NPR-Z và số, 11-17 ký tự)'); return; }
+              await api.setVehicleVIN(selected.id, vin);
+              setOpenVIN(false); reload();
+            } catch (e:any) { setVinErr(e?.message || 'Gán VIN thất bại'); }
+          }}>Lưu VIN</Button></div>
         </div>
       </Modal>
 
@@ -171,4 +184,11 @@ function CreateDeliveryModal({ open, onClose, vehicle, api, onDone }: { open: bo
       </div>
     </div>
   </Modal>;
+}
+
+function renderStatus(status?: string){
+  const s = (status ?? '').toUpperCase();
+  if (s === 'AT_DEALER') return <Badge className="bg-blue-50 text-blue-700">{humanVehicleStatus(status as any)}</Badge>;
+  if (s === 'DELIVERED') return <Badge className="bg-green-50 text-green-700">{humanVehicleStatus(status as any)}</Badge>;
+  return <Badge className="bg-gray-100 text-gray-700">{humanVehicleStatus(status as any)}</Badge>;
 }

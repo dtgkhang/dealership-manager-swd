@@ -28,7 +28,7 @@ export default function Deliveries({ api, can }: { api: ReturnType<typeof useApi
   return <div className="space-y-4">
     <div className="flex items-center justify-between">
       <h2 className="text-lg font-semibold">Phiếu giao xe</h2>
-      <Button className="bg-black text-white" onClick={()=>setOpen(true)} disabled={!can("DELIVERY.CREATE")}>Tạo phiếu</Button>
+      <Button variant="primary" onClick={()=>setOpen(true)} disabled={!can("DELIVERY.CREATE")}>Tạo phiếu</Button>
     </div>
     <Card>
       {error && <div className="mb-2 rounded-lg bg-red-50 p-2 text-sm text-red-700">{String(error)}</div>}
@@ -45,8 +45,12 @@ export default function Deliveries({ api, can }: { api: ReturnType<typeof useApi
               <td className="p-2">
                 {d.status!=="Delivered" && d.status!=="COMPLETED" && d.status!=="Cancelled" && (
                   <>
-                    <Button className="bg-green-600 text-white mr-2" onClick={()=>api.completeDelivery(d.id).then(reload)} disabled={!can("DELIVERY.COMPLETE")}>Hoàn tất</Button>
-                    <Button className="bg-red-600 text-white" onClick={async()=>{ try { await (api as any).cancelDelivery(d.id); reload(); } catch(e:any){ alert(e?.message || 'Hủy thất bại'); } }}>Hủy</Button>
+                    <Button variant="success" onClick={()=>api.completeDelivery(d.id).then(reload)} disabled={!can("DELIVERY.COMPLETE")}>
+                      Hoàn tất
+                    </Button>
+                    <Button variant="danger" onClick={async()=>{ if(!confirm('Xác nhận hủy phiếu giao #' + d.id + '?')) return; try { await (api as any).cancelDelivery(d.id); reload(); } catch(e:any){ alert(e?.message || 'Hủy thất bại'); } }}>
+                      Hủy
+                    </Button>
                   </>
                 )}
               </td>
@@ -86,10 +90,11 @@ export default function Deliveries({ api, can }: { api: ReturnType<typeof useApi
         </div>
         <div className="flex justify-end gap-2">
           <Button onClick={()=>setOpen(false)}>Hủy</Button>
-          <Button className="bg-black text-white" onClick={async()=>{
+          <Button variant="primary" onClick={async()=>{
             try {
               setErr(null);
               const payload: any = { ...form };
+              if (!payload.vehicleUnitId) { setErr('Vui lòng chọn xe (VIN)'); return; }
               if (payload.vehicleUnitId === "") delete payload.vehicleUnitId;
               await (api as any).createDelivery(payload);
               setOpen(false);
@@ -98,7 +103,7 @@ export default function Deliveries({ api, can }: { api: ReturnType<typeof useApi
               console.error('Create delivery failed', e);
               setErr(e?.message || 'Tạo phiếu giao thất bại');
             }
-          }} disabled={!form.orderId}>Tạo</Button>
+          }} disabled={!form.orderId || !form.vehicleUnitId}>Tạo</Button>
         </div>
       </div>
     </Modal>

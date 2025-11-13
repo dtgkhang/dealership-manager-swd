@@ -19,7 +19,7 @@ export default function CustomerOrders({ api, can }: { api: ReturnType<typeof us
       <h2 className="text-lg font-semibold">Đơn khách hàng</h2>
       <div className="flex items-center gap-2">
         <input className="rounded-xl border p-2 text-sm" placeholder="Tìm khách / mẫu xe" value={q} onChange={e=>setQ(e.target.value)} />
-        <Button className="bg-black text-white" onClick={()=>{ setOpen(true); setErr(null); setNotice(null); }}>Tạo đơn</Button>
+        <Button variant="primary" onClick={()=>{ setOpen(true); setErr(null); setNotice(null); }}>Tạo đơn</Button>
       </div>
     </div>
     <Card>
@@ -71,8 +71,14 @@ export default function CustomerOrders({ api, can }: { api: ReturnType<typeof us
               ))}
             </select>
           </div>
-          <input className="w-full rounded-xl border p-2" placeholder="Tên khách / ghi chú" value={form.customerInfo} onChange={e=>setForm({ ...form, customerInfo: e.target.value })} />
-          <input className="w-full rounded-xl border p-2" type="number" placeholder="Giá bán (VNĐ)" value={form.price ?? ''} onChange={e=>{ const v=e.target.value; setForm({ ...form, price: v===''? '' : Number(v) }); }} />
+          <div>
+            <input className={`w-full rounded-xl border p-2 ${err && (!form.customerInfo || !form.customerInfo.trim()) ? 'border-red-500' : ''}`} placeholder="Tên khách / ghi chú" value={form.customerInfo} onChange={e=>setForm({ ...form, customerInfo: e.target.value })} />
+            {err && (!form.customerInfo || !form.customerInfo.trim()) && <div className="mt-1 text-xs text-red-600">Vui lòng nhập thông tin khách</div>}
+          </div>
+          <div>
+            <input className={`w-full rounded-xl border p-2 ${err && (typeof form.price==='number' && form.price <= 0) ? 'border-red-500' : ''}`} type="number" placeholder="Giá bán (VNĐ)" min={0} value={form.price ?? ''} onChange={e=>{ const v=e.target.value; setForm({ ...form, price: v===''? '' : Number(v) }); }} />
+            {err && (typeof form.price==='number' && form.price <= 0) && <div className="mt-1 text-xs text-red-600">Giá phải &gt; 0</div>}
+          </div>
           <div>
             <label className="text-xs">Ngày giao dự kiến</label>
             <input className="w-full rounded-xl border p-2" type="date" value={(form.deliveryDate || '').split('T')[0]}
@@ -81,12 +87,15 @@ export default function CustomerOrders({ api, can }: { api: ReturnType<typeof us
         </div>
         <div className="flex justify-end gap-2">
           <Button onClick={()=>setOpen(false)}>Hủy</Button>
-          <Button className="bg-black text-white" onClick={async()=>{
+          <Button variant="primary" onClick={async()=>{
             try {
               setErr(null);
+              if (!form.vehicleId) { setErr('Vui lòng chọn mẫu xe'); return; }
+              if (!form.customerInfo || !form.customerInfo.trim()) { setErr('Vui lòng nhập thông tin khách'); return; }
+              if (typeof form.price === 'number' && form.price <= 0) { setErr('Giá bán phải > 0'); return; }
               const payload: any = {
                 vehicleId: form.vehicleId,
-                customerInfo: form.customerInfo,
+                customerInfo: form.customerInfo.trim(),
                 brand: form.brand,
                 price: typeof form.price === 'number' ? form.price : undefined,
                 deliveryDate: form.deliveryDate || undefined,

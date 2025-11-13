@@ -23,7 +23,7 @@ export default function Vouchers({ api, can }: { api: ReturnType<typeof useApi>,
       <div className="flex items-center gap-2">
         <input className="rounded-xl border p-2 text-sm" placeholder="Tìm mã hoặc tiêu đề" value={q} onChange={e=>setQ(e.target.value)} />
         <label className="text-sm flex items-center gap-1"><input type="checkbox" checked={includeInactive} onChange={e=>setIncludeInactive(e.target.checked)} /> Hiện cả đã hủy</label>
-        <Button className="bg-black text-white" onClick={()=>setOpen(true)} disabled={!can("VOUCHER.CREATE")}>Tạo mã</Button>
+        <Button variant="primary" onClick={()=>setOpen(true)} disabled={!can("VOUCHER.CREATE")}>Tạo mã</Button>
       </div>
     </div>
     <Card>
@@ -44,9 +44,9 @@ export default function Vouchers({ api, can }: { api: ReturnType<typeof useApi>,
                 Tối thiểu {currency(v.min_price)} · Tối đa {currency(v.max_discount)}
                 <div className="mt-1">
                   {v.active ? (
-                    <Button onClick={async()=>{ try { await (api as any).updateVoucherActive(v.id, false); reload(); } catch(e:any){ alert(e?.message || 'Hủy voucher thất bại'); } }}>Hủy</Button>
+                    <Button variant="danger" onClick={async()=>{ try { await (api as any).updateVoucherActive(v.id, false); reload(); } catch(e:any){ alert(e?.message || 'Hủy voucher thất bại'); } }}>Hủy</Button>
                   ) : (
-                    <Button onClick={async()=>{ try { await (api as any).updateVoucherActive(v.id, true); reload(); } catch(e:any){ alert(e?.message || 'Khôi phục voucher thất bại'); } }}>Khôi phục</Button>
+                    <Button variant="primary" onClick={async()=>{ try { await (api as any).updateVoucherActive(v.id, true); reload(); } catch(e:any){ alert(e?.message || 'Khôi phục voucher thất bại'); } }}>Khôi phục</Button>
                   )}
                 </div>
               </td>
@@ -60,7 +60,10 @@ export default function Vouchers({ api, can }: { api: ReturnType<typeof useApi>,
       <div className="space-y-3">
         {err && <div className="rounded-lg bg-red-50 p-2 text-sm text-red-700">{err}</div>}
         <div className="grid grid-cols-2 gap-3">
-          <input className="w-full rounded-xl border p-2" placeholder="Mã (ví dụ: FLAT10M)" value={form.code} onChange={e=>setForm({...form, code:e.target.value})} />
+          <div>
+            <input className={`w-full rounded-xl border p-2 ${err && !form.code.trim() ? 'border-red-500' : ''}`} placeholder="Mã (ví dụ: FLAT10M)" value={form.code} onChange={e=>setForm({...form, code:e.target.value})} />
+            {err && !form.code.trim() && <div className="mt-1 text-xs text-red-600">Vui lòng nhập mã</div>}
+          </div>
           <select className="w-full rounded-xl border p-2" value={form.type} onChange={e=>setForm({...form, type:e.target.value as VoucherType})}>
             <option value="FLAT">Giảm số tiền cố định</option>
             <option value="PERCENT">Giảm theo phần trăm</option>
@@ -70,22 +73,26 @@ export default function Vouchers({ api, can }: { api: ReturnType<typeof useApi>,
         <div className="grid grid-cols-3 gap-3">
           <div>
             <label className="text-xs">Tối thiểu áp dụng</label>
-            <input className="w-full rounded-xl border p-2" type="number" placeholder="0" value={form.min_price ?? ""} onChange={e=>setForm({...form, min_price: e.target.value? Number(e.target.value): undefined})} />
+            <input className={`w-full rounded-xl border p-2 ${err && (form.min_price!=null && form.min_price < 0) ? 'border-red-500' : ''}`} type="number" placeholder="0" min={0} value={form.min_price ?? ""} onChange={e=>setForm({...form, min_price: e.target.value? Number(e.target.value): undefined})} />
+            {err && (form.min_price!=null && form.min_price < 0) && <div className="mt-1 text-xs text-red-600">Không hợp lệ</div>}
           </div>
           <div>
             <label className="text-xs">Giảm tối đa</label>
-            <input className="w-full rounded-xl border p-2" type="number" placeholder="0" value={form.max_discount ?? ""} onChange={e=>setForm({...form, max_discount: e.target.value? Number(e.target.value): undefined})} />
+            <input className={`w-full rounded-xl border p-2 ${err && (form.max_discount!=null && form.max_discount < 0) ? 'border-red-500' : ''}`} type="number" placeholder="0" min={0} value={form.max_discount ?? ""} onChange={e=>setForm({...form, max_discount: e.target.value? Number(e.target.value): undefined})} />
+            {err && (form.max_discount!=null && form.max_discount < 0) && <div className="mt-1 text-xs text-red-600">Không hợp lệ</div>}
           </div>
           {form.type === "FLAT" && (
             <div>
               <label className="text-xs">Số tiền giảm</label>
-              <input className="w-full rounded-xl border p-2" type="number" placeholder="1000000" value={form.amount ?? ""} onChange={e=>setForm({...form, amount: e.target.value? Number(e.target.value): undefined})} />
+              <input className={`w-full rounded-xl border p-2 ${err && (!form.amount || form.amount <= 0) ? 'border-red-500' : ''}`} type="number" placeholder="1000000" min={1} value={form.amount ?? ""} onChange={e=>setForm({...form, amount: e.target.value? Number(e.target.value): undefined})} />
+              {err && (!form.amount || form.amount <= 0) && <div className="mt-1 text-xs text-red-600">Phải &gt; 0</div>}
             </div>
           )}
           {form.type === "PERCENT" && (
             <div>
               <label className="text-xs">Phần trăm (%)</label>
-              <input className="w-full rounded-xl border p-2" type="number" placeholder="5" value={form.percent ?? ""} onChange={e=>setForm({...form, percent: e.target.value? Number(e.target.value): undefined})} />
+              <input className={`w-full rounded-xl border p-2 ${err && (!form.percent || form.percent <= 0 || form.percent > 100) ? 'border-red-500' : ''}`} type="number" placeholder="5" min={1} max={100} value={form.percent ?? ""} onChange={e=>setForm({...form, percent: e.target.value? Number(e.target.value): undefined})} />
+              {err && (!form.percent || form.percent <= 0 || form.percent > 100) && <div className="mt-1 text-xs text-red-600">Trong khoảng 1–100</div>}
             </div>
           )}
         </div>
@@ -104,9 +111,15 @@ export default function Vouchers({ api, can }: { api: ReturnType<typeof useApi>,
         </div>
         <div className="flex justify-end gap-2">
           <Button onClick={()=>setOpen(false)}>Hủy</Button>
-          <Button className="bg-black text-white" onClick={async()=>{
+          <Button variant="primary" onClick={async()=>{
             try {
               setErr(null);
+              const code = form.code.trim();
+              if (!code) { setErr('Vui lòng nhập mã voucher'); return; }
+              if (form.type === 'FLAT' && (!form.amount || form.amount <= 0)) { setErr('Số tiền giảm phải > 0'); return; }
+              if (form.type === 'PERCENT' && (!form.percent || form.percent <= 0 || form.percent > 100)) { setErr('Phần trăm phải trong 1-100'); return; }
+              if (form.min_price != null && form.min_price < 0) { setErr('Tối thiểu áp dụng không hợp lệ'); return; }
+              if (form.max_discount != null && form.max_discount < 0) { setErr('Giảm tối đa không hợp lệ'); return; }
               await api.createVoucher({
               code: form.code.trim(), title: form.title.trim(), type: form.type,
               min_price: form.min_price, max_discount: form.max_discount,

@@ -39,14 +39,15 @@ export default function App(){
   }, [logged]);
 
   const tabsAll = backendMode ? [
-    { key: "orders", label: "Đơn hàng", roles: ["MANAGER","STAFF"] },
+    { key: "dashboard", label: "Tổng quan", roles: ["MANAGER","STAFF"] },
+    { key: "orders", label: "Đặt PO", roles: ["MANAGER","STAFF"] },
     { key: "customer-orders", label: "Đơn khách", roles: ["MANAGER","STAFF"] },
     { key: "inventory", label: "Kho xe", roles: ["MANAGER","STAFF"] },
     { key: "vouchers", label: "Mã ưu đãi", roles: ["MANAGER"] },
     { key: "deliveries", label: "Phiếu giao", roles: ["MANAGER","STAFF"] },
   ] as const : [
     { key: "dashboard", label: "Tổng quan", roles: ["MANAGER","STAFF"] },
-    { key: "orders", label: "PO từ hãng", roles: ["MANAGER"] },
+    { key: "orders", label: "Đặt PO", roles: ["MANAGER"] },
     { key: "inventory", label: "Kho xe", roles: ["MANAGER","STAFF"] },
     { key: "vouchers", label: "Mã ưu đãi", roles: ["MANAGER"] },
     { key: "deliveries", label: "Phiếu giao", roles: ["MANAGER","STAFF"] },
@@ -82,12 +83,18 @@ export default function App(){
           )}
         </div>
         <nav className="flex flex-wrap gap-2">
-          {visible.map(t => <Button key={t.key} onClick={()=>setTab(t.key)} className={tab===t.key ? "bg-black text-white" : "bg-white"}>{t.label}</Button>)}
+          {visible.map(t => (
+            <Button
+              key={t.key}
+              onClick={()=>setTab(t.key)}
+              variant={tab===t.key ? 'primary' : 'ghost'}
+            >{t.label}</Button>
+          ))}
         </nav>
       </header>
 
       <main key={logged ? 'auth' : 'guest'} className="space-y-4">
-        {!backendMode && tab==="dashboard" && <Dashboard api={api} />}
+        {tab==="dashboard" && <Dashboard api={api} role={role} />}
         {tab==="orders" && <Orders api={api} can={can} />}
         {tab==="inventory" && <Inventory api={api} can={can} />}
         {backendMode && tab==="customer-orders" && <CustomerOrders api={api} can={can} />}
