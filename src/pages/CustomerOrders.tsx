@@ -5,6 +5,7 @@ import { useApi } from "../lib/api";
 
 export default function CustomerOrders({ api, can }: { api: ReturnType<typeof useApi>, can: (p:string)=>boolean }) {
   const { loading, data, error, reload } = useReloadable((api as any).listCustomerOrders, []);
+  const [q, setQ] = React.useState("");
   const { data: models } = useReloadable(api.listModels, []);
   const [open, setOpen] = React.useState(false);
   const [err, setErr] = React.useState<string | null>(null);
@@ -16,7 +17,10 @@ export default function CustomerOrders({ api, can }: { api: ReturnType<typeof us
   return <div className="space-y-4">
     <div className="flex items-center justify-between">
       <h2 className="text-lg font-semibold">Đơn khách hàng</h2>
-      <Button className="bg-black text-white" onClick={()=>{ setOpen(true); setErr(null); setNotice(null); }}>Tạo đơn</Button>
+      <div className="flex items-center gap-2">
+        <input className="rounded-xl border p-2 text-sm" placeholder="Tìm khách / mẫu xe" value={q} onChange={e=>setQ(e.target.value)} />
+        <Button className="bg-black text-white" onClick={()=>{ setOpen(true); setErr(null); setNotice(null); }}>Tạo đơn</Button>
+      </div>
     </div>
     <Card>
       {error && <div className="mb-2 rounded-lg bg-red-50 p-2 text-sm text-red-700">{String(error)}</div>}
@@ -32,7 +36,11 @@ export default function CustomerOrders({ api, can }: { api: ReturnType<typeof us
           </tr>
         </thead>
         <tbody>
-          {loading ? <tr><td className="p-2" colSpan={5}>Đang tải…</td></tr> : (data ?? []).map((o: any) => (
+          {loading ? <tr><td className="p-2" colSpan={5}>Đang tải…</td></tr> : (data ?? []).filter((o:any)=>{
+            const s=(q||"").toLowerCase(); if(!s) return true;
+            const model = modelById.get(o.vehicleId)?.model ?? o.vehicleModel ?? '';
+            return (String(o.customerInfo ?? '').toLowerCase().includes(s) || String(model).toLowerCase().includes(s));
+          }).map((o: any) => (
             <tr key={o.id} className="border-t">
               <td className="p-2">#{o.id}</td>
               <td className="p-2">{o.customerInfo ?? ''}</td>
@@ -97,4 +105,3 @@ export default function CustomerOrders({ api, can }: { api: ReturnType<typeof us
     </Modal>
   </div>;
 }
-

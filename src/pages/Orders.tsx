@@ -6,6 +6,8 @@ import { useApi } from "../lib/api";
 // Orders page mapped to backend Purchase Order APIs
 export default function Orders({ api, can }: { api: ReturnType<typeof useApi>, can: (p:string)=>boolean }) {
   const { loading, data, error, reload } = useReloadable<any[]>(api.listOrders, []);
+  const [status, setStatus] = React.useState<string|"">("");
+  const [q, setQ] = React.useState("");
   const [open, setOpen] = React.useState(false);
   
   // Backend create PO payload
@@ -19,7 +21,17 @@ export default function Orders({ api, can }: { api: ReturnType<typeof useApi>, c
   return <div className="space-y-4">
     <div className="flex items-center justify-between">
       <h2 className="text-lg font-semibold">Đơn đặt xe từ hãng (PO)</h2>
-      <Button className="bg-black text-white" onClick={()=>setOpen(true)} disabled={!can("ORDER.CREATE")}>Tạo PO</Button>
+      <div className="flex items-center gap-2">
+        <input className="rounded-xl border p-2 text-sm" placeholder="Tìm số PO hoặc ghi chú" value={q} onChange={e=>setQ(e.target.value)} />
+        <select className="rounded-xl border p-2 text-sm" value={status} onChange={e=>setStatus(e.target.value)}>
+          <option value="">Tất cả</option>
+          <option value="DRAFT">DRAFT</option>
+          <option value="SUBMITTED">SUBMITTED</option>
+          <option value="CONFIRMED">CONFIRMED</option>
+          <option value="CANCELLED">CANCELLED</option>
+        </select>
+        <Button className="bg-black text-white" onClick={()=>setOpen(true)} disabled={!can("ORDER.CREATE")}>Tạo PO</Button>
+      </div>
     </div>
     <Card>
       {notice && <div className="mb-2 rounded-lg bg-green-50 p-2 text-sm text-green-700">{notice}</div>}
@@ -35,7 +47,12 @@ export default function Orders({ api, can }: { api: ReturnType<typeof useApi>, c
           </tr>
         </thead>
         <tbody>
-          {loading ? <tr><td className="p-2" colSpan={5}>Đang tải…</td></tr> : (data ?? []).map((o: any) => (
+          {loading ? <tr><td className="p-2" colSpan={5}>Đang tải…</td></tr> : (data ?? []).filter((o: any) => {
+            const s = (q||"").toLowerCase();
+            if (status && o.status !== status) return false;
+            if (!s) return true;
+            return (String(o.orderNo ?? o.order_no ?? '').toLowerCase().includes(s) || String(o.note ?? '').toLowerCase().includes(s));
+          }).map((o: any) => (
             <tr key={o.id} className="border-t">
               <td className="p-2 font-mono">{o.orderNo ?? o.order_no ?? `#${o.id}`}</td>
               <td className="p-2"><Badge className="bg-gray-100">{o.status ?? ''}</Badge></td>

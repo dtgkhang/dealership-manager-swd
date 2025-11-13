@@ -15,7 +15,8 @@ export default function Deliveries({ api, can }: { api: ReturnType<typeof useApi
   // Prefill customerName, priceBefore from selected order
   React.useEffect(()=>{
     if (!form.orderId) return;
-    const o: any = (orders ?? []).find((x:any)=> x.id === form.orderId);
+    const ordersArr = (orders as any[]) ?? [];
+    const o: any = ordersArr.find((x:any)=> x.id === form.orderId);
     if (!o) return;
     setForm(prev => ({
       ...prev,
@@ -34,7 +35,7 @@ export default function Deliveries({ api, can }: { api: ReturnType<typeof useApi
       <table className="w-full table-auto text-sm">
         <thead><tr className="text-left text-gray-600"><th className="p-2">ID</th><th className="p-2">Order</th><th className="p-2">Xe</th><th className="p-2">Ngày giao</th><th className="p-2">Trạng thái</th><th className="p-2">Thao tác</th></tr></thead>
         <tbody>
-          {loading ? <tr><td className="p-2" colSpan={6}>Đang tải…</td></tr> : (data ?? []).map((d: any) => (
+          {loading ? <tr><td className="p-2" colSpan={6}>Đang tải…</td></tr> : ((data as any[]) ?? []).map((d: any) => (
             <tr key={d.id} className="border-t">
               <td className="p-2">#{d.id}</td>
               <td className="p-2">{d.orderId}</td>
@@ -45,7 +46,7 @@ export default function Deliveries({ api, can }: { api: ReturnType<typeof useApi
                 {d.status!=="Delivered" && d.status!=="COMPLETED" && d.status!=="Cancelled" && (
                   <>
                     <Button className="bg-green-600 text-white mr-2" onClick={()=>api.completeDelivery(d.id).then(reload)} disabled={!can("DELIVERY.COMPLETE")}>Hoàn tất</Button>
-                    <Button className="bg-red-600 text-white" onClick={async()=>{ try { await fetch((import.meta as any).env?.VITE_API_BASE + `/api/deliveries/${d.id}/status`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ status: 'Cancelled' }) }); reload(); } catch(e:any){ alert(e?.message || 'Hủy thất bại'); } }}>Hủy</Button>
+                    <Button className="bg-red-600 text-white" onClick={async()=>{ try { await (api as any).cancelDelivery(d.id); reload(); } catch(e:any){ alert(e?.message || 'Hủy thất bại'); } }}>Hủy</Button>
                   </>
                 )}
               </td>
@@ -63,31 +64,25 @@ export default function Deliveries({ api, can }: { api: ReturnType<typeof useApi
             <label className="text-xs">Đơn hàng</label>
             <select className="w-full rounded-xl border p-2" value={form.orderId} onChange={e=>setForm({...form, orderId: e.target.value? Number(e.target.value): "" })}>
               <option value="">Chọn đơn</option>
-              {(orders ?? []).map((o:any)=> <option key={o.id} value={o.id}>#{o.id} – {o.username ?? o.userId ?? ''} · {o.vehicleModel ?? ''}</option>)}
+              {((orders as any[]) ?? []).map((o:any)=> <option key={o.id} value={o.id}>#{o.id} – {o.username ?? o.userId ?? ''} · {o.vehicleModel ?? ''}</option>)}
             </select>
           </div>
           <div>
             <label className="text-xs">Xe tại đại lý (VIN)</label>
             <select className="w-full rounded-xl border p-2" value={form.vehicleUnitId ?? ""} onChange={e=>setForm({...form, vehicleUnitId: e.target.value? Number(e.target.value): "" as any })}>
               <option value="">Chọn xe (AT_DEALER)</option>
-              {(units ?? []).map((u:any)=> <option key={u.id} value={u.id}>#{u.id} · {u.vin ?? '(chưa có VIN)'} · {u.model?.model ?? ''}</option>)}
+              {((units as any[]) ?? []).map((u:any)=> <option key={u.id} value={u.id}>#{u.id} · {u.vin ?? '(chưa có VIN)'} · {u.model?.model ?? ''}</option>)}
             </select>
           </div>
-          <input className="w-full rounded-xl border p-2" placeholder="Tên khách hàng" value={form.customerName ?? ''} onChange={e=>setForm({...form, customerName: e.target.value})} />
-          <input className="w-full rounded-xl border p-2" type="number" placeholder="Giá trước" value={form.priceBefore ?? ''}
-                 onChange={e=>{ const v=e.target.value; if (v==='') setForm({...form, priceBefore: ''}); else setForm({...form, priceBefore: Number(v)}); }} />
+          <input className="w-full rounded-xl border p-2 bg-gray-100" placeholder="Tên khách hàng" value={form.customerName ?? ''} disabled readOnly />
+          <input className="w-full rounded-xl border p-2 bg-gray-100" type="number" placeholder="Giá trước" value={form.priceBefore ?? ''} disabled readOnly />
           <div>
             <label className="text-xs">Mã voucher (nếu có)</label>
             <select className="w-full rounded-xl border p-2" value={form.voucherCode ?? ''} onChange={e=>setForm({...form, voucherCode: e.target.value })}>
               <option value="">Không áp dụng</option>
-              {(vouchers ?? []).map((v:any)=> <option key={v.id} value={v.code}>{v.code} – {v.title}</option>)}
+              {((vouchers as any[]) ?? []).map((v:any)=> <option key={v.id} value={v.code}>{v.code} – {v.title}</option>)}
             </select>
           </div>
-          <select className="w-full rounded-xl border p-2" value={form.status ?? ""} onChange={e=>setForm({...form, status: e.target.value})}>
-            <option value="Pending">Pending</option>
-            <option value="Delivered">Delivered</option>
-            <option value="Cancelled">Cancelled</option>
-          </select>
         </div>
         <div className="flex justify-end gap-2">
           <Button onClick={()=>setOpen(false)}>Hủy</Button>

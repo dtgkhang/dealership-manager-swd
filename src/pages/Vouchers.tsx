@@ -6,7 +6,9 @@ import { useApi } from "../lib/api";
 import type { VoucherType } from "../lib/types";
 
 export default function Vouchers({ api, can }: { api: ReturnType<typeof useApi>, can: (p:string)=>boolean }) {
-  const { loading, data, reload, error } = useReloadable(api.listVouchers, []);
+  const [includeInactive, setIncludeInactive] = React.useState(false);
+  const [q, setQ] = React.useState("");
+  const { loading, data, reload, error } = useReloadable(() => api.listVouchers(includeInactive), [includeInactive]);
   const [open, setOpen] = React.useState(false);
   const [form, setForm] = React.useState<{
     code: string; title: string; type: VoucherType;
@@ -18,14 +20,22 @@ export default function Vouchers({ api, can }: { api: ReturnType<typeof useApi>,
   return <div className="space-y-4">
     <div className="flex items-center justify-between">
       <h2 className="text-lg font-semibold">Mã ưu đãi</h2>
-      <Button className="bg-black text-white" onClick={()=>setOpen(true)} disabled={!can("VOUCHER.CREATE")}>Tạo mã</Button>
+      <div className="flex items-center gap-2">
+        <input className="rounded-xl border p-2 text-sm" placeholder="Tìm mã hoặc tiêu đề" value={q} onChange={e=>setQ(e.target.value)} />
+        <label className="text-sm flex items-center gap-1"><input type="checkbox" checked={includeInactive} onChange={e=>setIncludeInactive(e.target.checked)} /> Hiện cả đã hủy</label>
+        <Button className="bg-black text-white" onClick={()=>setOpen(true)} disabled={!can("VOUCHER.CREATE")}>Tạo mã</Button>
+      </div>
     </div>
     <Card>
       {error && <div className="mb-2 rounded-lg bg-red-50 p-2 text-sm text-red-700">{String(error)}</div>}
       <table className="w-full table-auto text-sm">
         <thead><tr className="text-left text-gray-600"><th className="p-2">Mã</th><th className="p-2">Loại</th><th className="p-2">Tiêu đề</th><th className="p-2">Điều kiện</th></tr></thead>
         <tbody>
-          {loading ? <tr><td className="p-2" colSpan={4}>Đang tải…</td></tr> : (data ?? []).map(v => (
+          {loading ? <tr><td className="p-2" colSpan={4}>Đang tải…</td></tr> : ((data as any[]) ?? []).filter((v: any) => {
+            const s = (q||"").toLowerCase();
+            if (!s) return true;
+            return (v.code?.toLowerCase()?.includes(s) || v.title?.toLowerCase()?.includes(s));
+          }).map((v: any) => (
             <tr key={v.id} className="border-t">
               <td className="p-2 font-mono">{v.code}</td>
               <td className="p-2">{v.type}</td>

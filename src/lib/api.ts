@@ -184,7 +184,7 @@ export function useApi(role: Role) {
       createCustomerOrder: async (_args: any) => { await delay(80); return { id: Math.random()*1e6|0 }; },
       listVehicles: async () => { await delay(80); return [...(mockDB as any).vehicle_units]; },
       listVehiclesByStatus: async (status: string) => { await delay(80); return (mockDB as any).vehicle_units.filter((v: any)=> v.status === status); },
-      listVouchers: async () => { await delay(80); return [...(mockDB as any).vouchers]; },
+      listVouchers: async (_includeInactive?: boolean) => { await delay(80); return [...(mockDB as any).vouchers]; },
       listDeliveries: async () => { await delay(80); return [...(mockDB as any).deliveries]; },
       createVoucher: async (args: any) => { if (!ROLE_PERMS[role].includes("VOUCHER.CREATE")) throw new Error("Không có quyền"); await delay(80); return (mockDB as any).createVoucher(args); },
       createOrder: async (args: any) => { if (!ROLE_PERMS[role].includes("ORDER.CREATE")) throw new Error("Không có quyền"); await delay(80); return (mockDB as any).createOrder(args); },
@@ -231,8 +231,9 @@ export function useApi(role: Role) {
       const data = await http(`/api/vehicle-units/${id}/vin?vin=${encodeURIComponent(vin)}`, { method: 'PATCH' });
       return data;
     },
-    listVouchers: async () => {
-      const data = await http('/api/vouchers');
+    listVouchers: async (includeInactive?: boolean) => {
+      const q = includeInactive ? '?includeInactive=true' : '';
+      const data = await http(`/api/vouchers${q}`);
       // Normalize to snake_case like mock types
       return (data as any[]).map((v: any) => ({
         id: v.id,
@@ -292,6 +293,11 @@ export function useApi(role: Role) {
     completeDelivery: async (id: number) => {
       if (!ROLE_PERMS[role].includes("DELIVERY.COMPLETE")) throw new Error("Không có quyền");
       const data = await http(`/api/deliveries/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status: 'Delivered' }) });
+      return data;
+    },
+    cancelDelivery: async (id: number) => {
+      if (!ROLE_PERMS[role].includes("DELIVERY.COMPLETE")) throw new Error("Không có quyền");
+      const data = await http(`/api/deliveries/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status: 'Cancelled' }) });
       return data;
     },
 
