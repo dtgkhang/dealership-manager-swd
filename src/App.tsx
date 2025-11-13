@@ -3,6 +3,7 @@ import React from "react";
 import { Button } from "./components/ui";
 import Dashboard from "./pages/Dashboard";
 import Orders from "./pages/Orders";
+import CustomerOrders from "./pages/CustomerOrders";
 import Inventory from "./pages/Inventory";
 import Vouchers from "./pages/Vouchers";
 import Deliveries from "./pages/Deliveries";
@@ -39,7 +40,9 @@ export default function App(){
 
   const tabsAll = backendMode ? [
     { key: "orders", label: "Đơn hàng", roles: ["MANAGER","STAFF"] },
+    { key: "customer-orders", label: "Đơn khách", roles: ["MANAGER","STAFF"] },
     { key: "inventory", label: "Kho xe", roles: ["MANAGER","STAFF"] },
+    { key: "vouchers", label: "Mã ưu đãi", roles: ["MANAGER"] },
     { key: "deliveries", label: "Phiếu giao", roles: ["MANAGER","STAFF"] },
   ] as const : [
     { key: "dashboard", label: "Tổng quan", roles: ["MANAGER","STAFF"] },
@@ -87,7 +90,8 @@ export default function App(){
         {!backendMode && tab==="dashboard" && <Dashboard api={api} />}
         {tab==="orders" && <Orders api={api} can={can} />}
         {tab==="inventory" && <Inventory api={api} can={can} />}
-        {!backendMode && tab==="vouchers" && <Vouchers api={api} can={can} />}
+        {backendMode && tab==="customer-orders" && <CustomerOrders api={api} can={can} />}
+        {tab==="vouchers" && <Vouchers api={api} can={can} />}
         {tab==="deliveries" && <Deliveries api={api} can={can} />}
       </main>
     </div>

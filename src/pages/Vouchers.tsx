@@ -6,13 +6,14 @@ import { useApi } from "../lib/api";
 import type { VoucherType } from "../lib/types";
 
 export default function Vouchers({ api, can }: { api: ReturnType<typeof useApi>, can: (p:string)=>boolean }) {
-  const { loading, data } = useReloadable(api.listVouchers, []);
+  const { loading, data, reload, error } = useReloadable(api.listVouchers, []);
   const [open, setOpen] = React.useState(false);
   const [form, setForm] = React.useState<{
     code: string; title: string; type: VoucherType;
     min_price?: number; max_discount?: number; amount?: number; percent?: number;
     usable_from?: string; usable_to?: string; stackable: boolean;
   }>({ code: "", title: "", type: "FLAT", min_price: undefined, max_discount: undefined, amount: 1000000, percent: undefined, usable_from: "", usable_to: "", stackable: false });
+  const [err, setErr] = React.useState<string | null>(null);
 
   return <div className="space-y-4">
     <div className="flex items-center justify-between">
@@ -20,6 +21,7 @@ export default function Vouchers({ api, can }: { api: ReturnType<typeof useApi>,
       <Button className="bg-black text-white" onClick={()=>setOpen(true)} disabled={!can("VOUCHER.CREATE")}>Tạo mã</Button>
     </div>
     <Card>
+      {error && <div className="mb-2 rounded-lg bg-red-50 p-2 text-sm text-red-700">{String(error)}</div>}
       <table className="w-full table-auto text-sm">
         <thead><tr className="text-left text-gray-600"><th className="p-2">Mã</th><th className="p-2">Loại</th><th className="p-2">Tiêu đề</th><th className="p-2">Điều kiện</th></tr></thead>
         <tbody>
@@ -27,8 +29,17 @@ export default function Vouchers({ api, can }: { api: ReturnType<typeof useApi>,
             <tr key={v.id} className="border-t">
               <td className="p-2 font-mono">{v.code}</td>
               <td className="p-2">{v.type}</td>
-              <td className="p-2">{v.title}</td>
-              <td className="p-2 text-gray-600">Tối thiểu {currency(v.min_price)} · Tối đa {currency(v.max_discount)}</td>
+              <td className="p-2">{v.title} {!v.active && <span className="ml-2 text-xs text-red-600">(Đã hủy)</span>}</td>
+              <td className="p-2 text-gray-600">
+                Tối thiểu {currency(v.min_price)} · Tối đa {currency(v.max_discount)}
+                <div className="mt-1">
+                  {v.active ? (
+                    <Button onClick={async()=>{ try { await (api as any).updateVoucherActive(v.id, false); reload(); } catch(e:any){ alert(e?.message || 'Hủy voucher thất bại'); } }}>Hủy</Button>
+                  ) : (
+                    <Button onClick={async()=>{ try { await (api as any).updateVoucherActive(v.id, true); reload(); } catch(e:any){ alert(e?.message || 'Khôi phục voucher thất bại'); } }}>Khôi phục</Button>
+                  )}
+                </div>
+              </td>
             </tr>
           ))}
         </tbody>
@@ -37,6 +48,7 @@ export default function Vouchers({ api, can }: { api: ReturnType<typeof useApi>,
 
     <Modal open={open} onClose={()=>setOpen(false)} title="Tạo mã ưu đãi">
       <div className="space-y-3">
+        {err && <div className="rounded-lg bg-red-50 p-2 text-sm text-red-700">{err}</div>}
         <div className="grid grid-cols-2 gap-3">
           <input className="w-full rounded-xl border p-2" placeholder="Mã (ví dụ: FLAT10M)" value={form.code} onChange={e=>setForm({...form, code:e.target.value})} />
           <select className="w-full rounded-xl border p-2" value={form.type} onChange={e=>setForm({...form, type:e.target.value as VoucherType})}>
@@ -83,15 +95,22 @@ export default function Vouchers({ api, can }: { api: ReturnType<typeof useApi>,
         <div className="flex justify-end gap-2">
           <Button onClick={()=>setOpen(false)}>Hủy</Button>
           <Button className="bg-black text-white" onClick={async()=>{
-            await api.createVoucher({
+            try {
+              setErr(null);
+              await api.createVoucher({
               code: form.code.trim(), title: form.title.trim(), type: form.type,
               min_price: form.min_price, max_discount: form.max_discount,
               amount: form.type === "FLAT" ? form.amount : undefined,
               percent: form.type === "PERCENT" ? form.percent : undefined,
               usable_from: form.usable_from || undefined, usable_to: form.usable_to || undefined,
               stackable: form.stackable,
-            } as any);
-            setOpen(false);
+              } as any);
+              setOpen(false);
+              reload();
+            } catch (e:any) {
+              console.error('Create voucher failed', e);
+              setErr(e?.message || 'Tạo voucher thất bại');
+            }
           }}>Tạo</Button>
         </div>
       </div>

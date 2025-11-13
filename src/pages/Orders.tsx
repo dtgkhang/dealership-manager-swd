@@ -11,7 +11,10 @@ export default function Orders({ api, can }: { api: ReturnType<typeof useApi>, c
   // Backend create PO payload
   const [form, setForm] = React.useState<{ order_no: string; eta_at_dealer: string; note?: string; car_model_id: number; quantity: number }>({ order_no: "", eta_at_dealer: "", note: "", car_model_id: 1, quantity: 1 });
   const [notice, setNotice] = React.useState<string | null>(null);
-  const { data: models } = useReloadable<any[]>(api.listModels, []);
+  const { data: models, reload: reloadModels } = useReloadable<any[]>(api.listModels, []);
+  React.useEffect(()=>{ if (open) reloadModels(); }, [open]);
+  const [addModelOpen, setAddModelOpen] = React.useState(false);
+  const [newModel, setNewModel] = React.useState<{ model: string; brand: string; price: number | '' }>({ model: '', brand: 'DemoBrand', price: '' });
 
   return <div className="space-y-4">
     <div className="flex items-center justify-between">
@@ -64,6 +67,28 @@ export default function Orders({ api, can }: { api: ReturnType<typeof useApi>, c
                 <option key={m.id} value={m.id}>{(m.brand?.name ?? '')} {m.model} {(m.variant ?? '')}</option>
               ))}
             </select>
+            {(!models || models.length===0) && <div className="mt-2 text-xs text-gray-500">Chưa có model. Tạo nhanh bên dưới.</div>}
+            <div className="mt-2">
+              <button type="button" className="text-xs underline" onClick={()=>setAddModelOpen(v=>!v)}>{addModelOpen ? 'Ẩn' : 'Thêm model nhanh'}</button>
+            </div>
+            {addModelOpen && (
+              <div className="mt-2 grid grid-cols-3 gap-2">
+                <input className="rounded-xl border p-2 col-span-1" placeholder="Tên model" value={newModel.model} onChange={e=>setNewModel({...newModel, model:e.target.value})} />
+                <input className="rounded-xl border p-2 col-span-1" placeholder="Brand" value={newModel.brand} onChange={e=>setNewModel({...newModel, brand:e.target.value})} />
+                <input className="rounded-xl border p-2 col-span-1" type="number" placeholder="Giá" value={newModel.price} onChange={e=>setNewModel({...newModel, price: e.target.value===''? '': Number(e.target.value)})} />
+                <div className="col-span-3 flex justify-end">
+                  <Button className="bg-black text-white" onClick={async()=>{
+                    try {
+                      const created:any = await (api as any).createModel({ model: newModel.model.trim(), brand: newModel.brand.trim(), price: typeof newModel.price==='number'? newModel.price: undefined });
+                      await reloadModels();
+                      if (created?.id) setForm(f=>({ ...f, car_model_id: created.id }));
+                      setAddModelOpen(false);
+                      setNewModel({ model:'', brand:'DemoBrand', price: '' });
+                    } catch(e:any){ alert(e?.message || 'Tạo model thất bại'); }
+                  }}>Tạo model</Button>
+                </div>
+              </div>
+            )}
           </div>
           <div>
             <label className="text-xs">Số lượng</label>

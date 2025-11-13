@@ -179,8 +179,11 @@ export function useApi(role: Role) {
   if (!useBackend) {
     return {
       listModels: async () => { await delay(80); return [...(mockDB as any).car_models]; },
-      listOrders: async () => { await delay(80); return [...(mockDB as any).manufacturer_orders]; },
+      listOrders: async () => { await delay(80); return [...(mockDB as any).manufacturer_orders]; }, // POs
+      listCustomerOrders: async () => { await delay(80); return []; },
+      createCustomerOrder: async (_args: any) => { await delay(80); return { id: Math.random()*1e6|0 }; },
       listVehicles: async () => { await delay(80); return [...(mockDB as any).vehicle_units]; },
+      listVehiclesByStatus: async (status: string) => { await delay(80); return (mockDB as any).vehicle_units.filter((v: any)=> v.status === status); },
       listVouchers: async () => { await delay(80); return [...(mockDB as any).vouchers]; },
       listDeliveries: async () => { await delay(80); return [...(mockDB as any).deliveries]; },
       createVoucher: async (args: any) => { if (!ROLE_PERMS[role].includes("VOUCHER.CREATE")) throw new Error("Không có quyền"); await delay(80); return (mockDB as any).createVoucher(args); },
@@ -201,9 +204,23 @@ export function useApi(role: Role) {
       const data = await http('/api/models');
       return data;
     },
+    createModel: async (args: { model: string; price?: number; brand?: string; cost?: number; status?: string }) => {
+      const params = new URLSearchParams();
+      params.set('model', args.model);
+      if (args.price != null) params.set('price', String(args.price));
+      if (args.cost != null) params.set('cost', String(args.cost));
+      if (args.status) params.set('status', args.status);
+      if (args.brand) params.set('brand', args.brand);
+      const data = await http(`/api/models?${params.toString()}`, { method: 'POST' });
+      return data;
+    },
     // Vehicle units for inventory
     listVehicles: async () => {
       const data = await http('/api/vehicle-units');
+      return data;
+    },
+    listVehiclesByStatus: async (status: string) => {
+      const data = await http(`/api/vehicle-units?status=${encodeURIComponent(status)}`);
       return data;
     },
     markVehicleArrived: async (id: number) => {
@@ -216,7 +233,22 @@ export function useApi(role: Role) {
     },
     listVouchers: async () => {
       const data = await http('/api/vouchers');
-      return data;
+      // Normalize to snake_case like mock types
+      return (data as any[]).map((v: any) => ({
+        id: v.id,
+        code: v.code,
+        type: v.type,
+        title: v.title,
+        min_price: v.minPrice,
+        max_discount: v.maxDiscount,
+        amount: v.amount,
+        percent: v.percent,
+        usable_from: v.usableFrom,
+        usable_to: v.usableTo,
+        stackable: !!v.stackable,
+        created_at: v.createdAt,
+        active: v.active !== false,
+      }));
     },
     computeVoucherDiscount: (_v: Voucher, _price?: number) => 0,
 
@@ -240,6 +272,16 @@ export function useApi(role: Role) {
     // Deliveries
     listDeliveries: async () => {
       const data = await http('/api/deliveries');
+      return data;
+    },
+    // Customer orders
+    listCustomerOrders: async () => {
+      const data = await http('/api/orders');
+      return data;
+    },
+    createCustomerOrder: async (args: { vehicleId: number; customerInfo: string; brand?: string; price?: number; deliveryDate?: string }) => {
+      const payload: any = { ...args };
+      const data = await http('/api/orders', { method: 'POST', body: JSON.stringify(payload) });
       return data;
     },
     createDelivery: async (args: { orderId: number; vehicleUnitId?: number; customerName?: string; priceBefore?: number; voucherCode?: string; status?: string }) => {
@@ -268,6 +310,10 @@ export function useApi(role: Role) {
         stackable: !!args.stackable,
       };
       const data = await http('/api/vouchers', { method: 'POST', body: JSON.stringify(payload) });
+      return data;
+    },
+    updateVoucherActive: async (id: number, active: boolean) => {
+      const data = await http(`/api/vouchers/${id}/active?active=${active ? 'true':'false'}`, { method: 'PATCH' });
       return data;
     },
   } as any;
