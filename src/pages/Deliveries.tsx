@@ -6,7 +6,7 @@ import { currency } from "../lib/utils";
 
 export default function Deliveries({ api, can }: { api: ReturnType<typeof useApi>, can: (p:string)=>boolean }) {
   const { loading, data, error, reload } = useReloadable(api.listDeliveries, []);
-  const { data: orders } = useReloadable((api as any).listCustomerOrders ?? api.listOrders, []);
+  const { data: orders, reload: reloadOrders } = useReloadable((api as any).listCustomerOrders ?? api.listOrders, []);
   const { data: units } = useReloadable(() => (api as any).listVehiclesByStatus ? (api as any).listVehiclesByStatus('AT_DEALER') : api.listVehicles(), []);
   const { data: vouchers } = useReloadable(api.listVouchers, []);
   const [open, setOpen] = React.useState(false);
@@ -54,7 +54,7 @@ export default function Deliveries({ api, can }: { api: ReturnType<typeof useApi
             <tr key={d.id} className="border-t">
               <td className="p-2">#{d.id}</td>
               <td className="p-2">{d.orderId}</td>
-              <td className="p-2">{d.staffName ?? ''}</td>
+              <td className="p-2">{d.staffName ?? d.username ?? ''}</td>
               <td className="p-2">{d.vehicleId ?? ""}</td>
               <td className="p-2">{d.deliveryDate?.split('T').join(' ').slice(0,16) ?? ""}</td>
               <td className="p-2">{d.status}</td>
@@ -62,12 +62,12 @@ export default function Deliveries({ api, can }: { api: ReturnType<typeof useApi
               <td className="p-2">{currency(Number(d.discountApplied || 0))}</td>
               <td className="p-2 font-semibold">{currency(Number(d.priceAfter || 0))}</td>
               <td className="p-2">
-                {d.status!=="Delivered" && d.status!=="COMPLETED" && d.status!=="Cancelled" && (
+                {(() => { const s = String(d.status||'').toUpperCase(); return s!=="DELIVERED" && s!=="COMPLETED" && s!=="CANCELLED"; })() && (
                   <>
-                    <Button variant="success" onClick={()=>api.completeDelivery(d.id).then(reload)} disabled={!can("DELIVERY.COMPLETE")}>
+                    <Button variant="success" onClick={()=>api.completeDelivery(d.id).then(()=>{ reload(); reloadOrders?.(); })} disabled={!can("DELIVERY.COMPLETE")}>
                       Hoàn tất
                     </Button>
-                    <Button variant="danger" onClick={async()=>{ if(!confirm('Xác nhận hủy phiếu giao #' + d.id + '?')) return; try { await (api as any).cancelDelivery(d.id); reload(); } catch(e:any){ alert(e?.message || 'Hủy thất bại'); } }}>
+                    <Button variant="danger" onClick={async()=>{ if(!confirm('Xác nhận hủy phiếu giao #' + d.id + '?')) return; try { await (api as any).cancelDelivery(d.id); reload(); reloadOrders?.(); } catch(e:any){ alert(e?.message || 'Hủy thất bại'); } }}>
                       Hủy
                     </Button>
                   </>
@@ -102,13 +102,7 @@ export default function Deliveries({ api, can }: { api: ReturnType<typeof useApi
           </div>
           <input className="w-full rounded-xl border p-2 bg-gray-100" placeholder="Tên khách hàng" value={form.customerName ?? ''} disabled readOnly />
           <input className="w-full rounded-xl border p-2 bg-gray-100" type="number" placeholder="Giá trước" value={form.priceBefore ?? ''} disabled readOnly />
-          <div>
-            <label className="text-xs">Mã voucher (nếu có)</label>
-            <select className="w-full rounded-xl border p-2" value={form.voucherCode ?? ''} onChange={e=>setForm({...form, voucherCode: e.target.value })}>
-              <option value="">Không áp dụng</option>
-              {((vouchers as any[]) ?? []).map((v:any)=> <option key={v.id} value={v.code}>{v.code} – {v.title}</option>)}
-            </select>
-          </div>
+          {/* Voucher đã chuyển về bước Đơn khách */}
         </div>
         <div className="flex justify-end gap-2">
           <Button onClick={()=>setOpen(false)}>Hủy</Button>

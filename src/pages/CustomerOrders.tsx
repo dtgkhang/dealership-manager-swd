@@ -2,15 +2,17 @@ import React from "react";
 import { Button, Card, Modal } from "../components/ui";
 import { useReloadable } from "../hooks/useReloadable";
 import { useApi } from "../lib/api";
+import { currency } from "../lib/utils";
 
 export default function CustomerOrders({ api, can }: { api: ReturnType<typeof useApi>, can: (p:string)=>boolean }) {
   const { loading, data, error, reload } = useReloadable<any[]>((api as any).listCustomerOrders, []);
   const [q, setQ] = React.useState("");
   const { data: models } = useReloadable<any[]>(api.listModels, []);
+  const { data: vouchers } = useReloadable<any[]>((api as any).listVouchers, []);
   const [open, setOpen] = React.useState(false);
   const [err, setErr] = React.useState<string | null>(null);
   const [notice, setNotice] = React.useState<string | null>(null);
-  const [form, setForm] = React.useState<{ vehicleId: number | ""; customerInfo: string; brand?: string; price?: number | ""; deliveryDate?: string }>(()=>({ vehicleId: "", customerInfo: "", brand: "", price: "", deliveryDate: "" }));
+  const [form, setForm] = React.useState<{ vehicleId: number | ""; customerInfo: string; brand?: string; price?: number | ""; deliveryDate?: string; voucherCode?: string }>(()=>({ vehicleId: "", customerInfo: "", brand: "", price: "", deliveryDate: "", voucherCode: "" }));
 
   const modelById = React.useMemo(()=> new Map(((models ?? []) as any[]).map((m: any) => [m.id, m])), [models]);
 
@@ -23,6 +25,15 @@ export default function CustomerOrders({ api, can }: { api: ReturnType<typeof us
       </div>
     </div>
     <Card>
+      {(() => {
+        const rows: any[] = ((data as any[]) ?? []);
+        const completed = rows.filter(o => String(o.status||'').toUpperCase()==='COMPLETED');
+        const total = completed.reduce((sum, o:any)=> sum + Number(o.priceAfter || o.price || 0), 0);
+        return <div className="flex items-center gap-6 text-sm">
+          <div><span className="text-gray-600">Đơn hoàn tất:</span> <span className="font-semibold">{completed.length}</span></div>
+          <div><span className="text-gray-600">Doanh thu:</span> <span className="font-semibold">{currency(total)}</span></div>
+        </div>;
+      })()}
       {error && <div className="mb-2 rounded-lg bg-red-50 p-2 text-sm text-red-700">{String(error)}</div>}
       {notice && <div className="mb-2 rounded-lg bg-green-50 p-2 text-sm text-green-700">{notice}</div>}
       <table className="w-full table-auto text-sm">
@@ -33,6 +44,8 @@ export default function CustomerOrders({ api, can }: { api: ReturnType<typeof us
             <th className="p-2">Nhân viên</th>
             <th className="p-2">Mẫu xe</th>
             <th className="p-2">Giá</th>
+            <th className="p-2">Giảm</th>
+            <th className="p-2">Sau KM</th>
             <th className="p-2">Trạng thái</th>
           </tr>
         </thead>
@@ -47,7 +60,9 @@ export default function CustomerOrders({ api, can }: { api: ReturnType<typeof us
               <td className="p-2">{o.customerInfo ?? ''}</td>
               <td className="p-2">{o.username ?? ''}</td>
               <td className="p-2">{o.vehicleModel ?? (modelById.get(o.vehicleId)?.model ?? o.vehicleId)}</td>
-              <td className="p-2">{o.price ?? ''}</td>
+              <td className="p-2">{currency(Number(o.price || 0))}</td>
+              <td className="p-2">{currency(Number(o.discountApplied || 0))}</td>
+              <td className="p-2 font-semibold">{currency(Number(o.priceAfter || o.price || 0))}</td>
               <td className="p-2">{o.status ?? ''}</td>
             </tr>
           ))}
@@ -86,7 +101,32 @@ export default function CustomerOrders({ api, can }: { api: ReturnType<typeof us
             <input className="w-full rounded-xl border p-2" type="date" value={(form.deliveryDate || '').split('T')[0]}
                    onChange={e=> setForm({ ...form, deliveryDate: e.target.value ? new Date(e.target.value).toISOString() : '' })} />
           </div>
+          <div className="col-span-2">
+            <label className="text-xs">Voucher (tuỳ chọn)</label>
+            <select className="w-full rounded-xl border p-2" value={form.voucherCode||''} onChange={e=>setForm({...form, voucherCode: e.target.value||''})}>
+              <option value="">Không áp dụng</option>
+              {((vouchers as any[]) ?? []).map((v:any)=> <option key={v.id} value={v.code}>{v.code} – {v.title}</option>)}
+            </select>
+          </div>
         </div>
+        {(() => {
+          const v = ((vouchers as any[]) ?? []).find((x:any)=> x.code === form.voucherCode);
+          const p = typeof form.price==='number' ? form.price : 0;
+          let d = 0;
+          if (v && p>0) {
+            const min = v.min_price ?? null; if (min!=null && p < min) d = 0; else {
+              if (v.type==='FLAT' && v.amount) d = v.amount;
+              if (v.type==='PERCENT' && v.percent) d = Math.floor((p * v.percent)/100);
+              if (v.max_discount!=null) d = Math.min(d, v.max_discount);
+            }
+          }
+          const after = Math.max(0, p - d);
+          return <div className="rounded-xl border p-3 text-sm text-gray-700">
+            <div>Giá trước: <span className="font-medium">{currency(p)}</span></div>
+            <div>Giảm: <span className="font-medium">{currency(d)}</span></div>
+            <div>Giá sau: <span className="font-semibold">{currency(after)}</span></div>
+          </div>;
+        })()}
         <div className="flex justify-end gap-2">
           <Button onClick={()=>setOpen(false)}>Hủy</Button>
           <Button variant="primary" onClick={async()=>{
@@ -100,6 +140,7 @@ export default function CustomerOrders({ api, can }: { api: ReturnType<typeof us
                 customerInfo: form.customerInfo.trim(),
                 brand: form.brand,
                 price: typeof form.price === 'number' ? form.price : undefined,
+                voucherCode: form.voucherCode || undefined,
                 deliveryDate: form.deliveryDate || undefined,
               };
               await (api as any).createCustomerOrder(payload);

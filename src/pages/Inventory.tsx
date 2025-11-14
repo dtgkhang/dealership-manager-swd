@@ -48,7 +48,7 @@ export default function Inventory({ api, can }: { api: ReturnType<typeof useApi>
                 <td className="p-2">{renderStatus(v.status)}</td>
                 <td className="p-2">{v.arrived_at?.split("T")[0] ?? ""}</td>
                 <td className="p-2 space-x-2">
-                  <Button variant="info" onClick={()=>api.markVehicleArrived(v.id).then(reload)} disabled={!can("VEHICLE.MARK_ARRIVED")}>Đánh dấu về đại lý</Button>
+                  <Button variant="info" onClick={()=>api.markVehicleArrived(v.id).then(reload)} disabled={v.status!=="ON_ORDER" || !can("VEHICLE.MARK_ARRIVED")}>Đánh dấu về đại lý</Button>
                   <Button onClick={()=>{ setSelected(v); setVinInput(v.vin ?? ""); setOpenVIN(true); }} disabled={!can("VEHICLE.SET_VIN")}>Gán VIN</Button>
                   <Button variant="primary" onClick={()=>{ setSelected(v); setOpenDeliver(true); }} disabled={v.status!=="AT_DEALER" || !can("DELIVERY.CREATE")}>Lập phiếu giao</Button>
                 </td>
@@ -73,7 +73,7 @@ export default function Inventory({ api, can }: { api: ReturnType<typeof useApi>
                 <td className="p-2">{renderStatus(v.status)}</td>
                 <td className="p-2">{v.arrivedAt?.split('T')[0] ?? ''}</td>
                 <td className="p-2 space-x-2">
-                  <Button variant="info" onClick={()=>api.markVehicleArrived(v.id).then(reload)} disabled={!can("VEHICLE.MARK_ARRIVED")}>Đánh dấu về đại lý</Button>
+                  <Button variant="info" onClick={()=>api.markVehicleArrived(v.id).then(reload)} disabled={v.status!=="ON_ORDER" || !can("VEHICLE.MARK_ARRIVED")}>Đánh dấu về đại lý</Button>
                   <Button onClick={()=>{ setSelected(v); setVinInput(v.vin ?? ""); setOpenVIN(true); }} disabled={!can("VEHICLE.SET_VIN")}>Gán VIN</Button>
                   <Button variant="primary" onClick={()=>{ setSelected(v); setOpenDeliver(true); }} disabled={v.status!=="AT_DEALER" || !can("DELIVERY.CREATE")}>Lập phiếu giao</Button>
                 </td>

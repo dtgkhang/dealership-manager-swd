@@ -41,7 +41,7 @@ export default function App(){
 
   const tabsAll = backendMode ? [
     { key: "dashboard", label: "Tổng quan", roles: ["MANAGER","STAFF"] },
-    { key: "orders", label: "Đặt PO", roles: ["MANAGER","STAFF"] },
+    { key: "orders", label: "Đặt PO", roles: ["MANAGER"] },
     { key: "customer-orders", label: "Đơn khách", roles: ["MANAGER","STAFF"] },
     { key: "inventory", label: "Kho xe", roles: ["MANAGER","STAFF"] },
     { key: "vouchers", label: "Mã ưu đãi", roles: ["MANAGER"] },
