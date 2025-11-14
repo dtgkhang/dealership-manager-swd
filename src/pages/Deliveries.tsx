@@ -2,6 +2,7 @@ import React from "react";
 import { Button, Card, Modal } from "../components/ui";
 import { useReloadable } from "../hooks/useReloadable";
 import { useApi } from "../lib/api";
+import { currency } from "../lib/utils";
 
 export default function Deliveries({ api, can }: { api: ReturnType<typeof useApi>, can: (p:string)=>boolean }) {
   const { loading, data, error, reload } = useReloadable(api.listDeliveries, []);
@@ -31,17 +32,35 @@ export default function Deliveries({ api, can }: { api: ReturnType<typeof useApi
       <Button variant="primary" onClick={()=>setOpen(true)} disabled={!can("DELIVERY.CREATE")}>Tạo phiếu</Button>
     </div>
     <Card>
+      {(() => {
+        const rows: any[] = ((data as any[]) ?? []);
+        const delivered = rows.filter(d => {
+          const s = String(d.status || '').toUpperCase();
+          return s === 'DELIVERED' || s === 'COMPLETED';
+        });
+        const total = delivered.reduce((sum, d:any) => sum + Number(d.priceAfter || 0), 0);
+        return <div className="flex items-center gap-6 text-sm">
+          <div><span className="text-gray-600">Số phiếu đã hoàn tất:</span> <span className="font-semibold">{delivered.length}</span></div>
+          <div><span className="text-gray-600">Doanh thu:</span> <span className="font-semibold">{currency(total)}</span></div>
+        </div>;
+      })()}
+    </Card>
+    <Card>
       {error && <div className="mb-2 rounded-lg bg-red-50 p-2 text-sm text-red-700">{String(error)}</div>}
       <table className="w-full table-auto text-sm">
-        <thead><tr className="text-left text-gray-600"><th className="p-2">ID</th><th className="p-2">Order</th><th className="p-2">Xe</th><th className="p-2">Ngày giao</th><th className="p-2">Trạng thái</th><th className="p-2">Thao tác</th></tr></thead>
+        <thead><tr className="text-left text-gray-600"><th className="p-2">ID</th><th className="p-2">Order</th><th className="p-2">Nhân viên</th><th className="p-2">Xe</th><th className="p-2">Ngày giao</th><th className="p-2">Trạng thái</th><th className="p-2">Giá trước</th><th className="p-2">Giảm</th><th className="p-2">Giá sau</th><th className="p-2">Thao tác</th></tr></thead>
         <tbody>
-          {loading ? <tr><td className="p-2" colSpan={6}>Đang tải…</td></tr> : ((data as any[]) ?? []).map((d: any) => (
+          {loading ? <tr><td className="p-2" colSpan={10}>Đang tải…</td></tr> : ((data as any[]) ?? []).map((d: any) => (
             <tr key={d.id} className="border-t">
               <td className="p-2">#{d.id}</td>
               <td className="p-2">{d.orderId}</td>
+              <td className="p-2">{d.staffName ?? ''}</td>
               <td className="p-2">{d.vehicleId ?? ""}</td>
               <td className="p-2">{d.deliveryDate?.split('T').join(' ').slice(0,16) ?? ""}</td>
               <td className="p-2">{d.status}</td>
+              <td className="p-2">{currency(Number(d.priceBefore || 0))}</td>
+              <td className="p-2">{currency(Number(d.discountApplied || 0))}</td>
+              <td className="p-2 font-semibold">{currency(Number(d.priceAfter || 0))}</td>
               <td className="p-2">
                 {d.status!=="Delivered" && d.status!=="COMPLETED" && d.status!=="Cancelled" && (
                   <>
@@ -68,7 +87,10 @@ export default function Deliveries({ api, can }: { api: ReturnType<typeof useApi
             <label className="text-xs">Đơn hàng</label>
             <select className="w-full rounded-xl border p-2" value={form.orderId} onChange={e=>setForm({...form, orderId: e.target.value? Number(e.target.value): "" })}>
               <option value="">Chọn đơn</option>
-              {((orders as any[]) ?? []).map((o:any)=> <option key={o.id} value={o.id}>#{o.id} – {o.username ?? o.userId ?? ''} · {o.vehicleModel ?? ''}</option>)}
+              {((orders as any[]) ?? []).filter((o:any)=> {
+                const s = String(o.status||'').toUpperCase();
+                return s !== 'COMPLETED' && s !== 'DELIVERED' && s !== 'CANCELLED';
+              }).map((o:any)=> <option key={o.id} value={o.id}>#{o.id} – {o.username ?? o.userId ?? ''} · {o.vehicleModel ?? ''}</option>)}
             </select>
           </div>
           <div>

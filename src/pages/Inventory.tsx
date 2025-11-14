@@ -7,9 +7,9 @@ import { useApi, BACKEND_MODE } from "../lib/api";
 //
 
 export default function Inventory({ api, can }: { api: ReturnType<typeof useApi>, can: (p:string)=>boolean }) {
-  const { loading, data, error, reload } = useReloadable(api.listVehicles, []);
-  const { data: models } = useReloadable(api.listModels, []);
-  const modelById = React.useMemo(()=> new Map((models ?? []).map(m => [m.id, m])), [models]);
+  const { loading, data, error, reload } = useReloadable<any[]>(api.listVehicles, []);
+  const { data: models } = useReloadable<any[]>(api.listModels, []);
+  const modelById = React.useMemo(()=> new Map(((models ?? []) as any[]).map((m: any) => [m.id, m])), [models]);
   const [q, setQ] = React.useState("");
   const [status, setStatus] = React.useState<string|"">("");
   const [vinInput, setVinInput] = React.useState(""); const [selected, setSelected] = React.useState<VehicleUnit | any | null>(null);
@@ -35,16 +35,16 @@ export default function Inventory({ api, can }: { api: ReturnType<typeof useApi>
         <table className="w-full table-auto text-sm">
           <thead><tr className="text-left text-gray-600"><th className="p-2">ID</th><th className="p-2">VIN</th><th className="p-2">Dòng xe</th><th className="p-2">Trạng thái</th><th className="p-2">Ngày về</th><th className="p-2">Thao tác</th></tr></thead>
           <tbody>
-            {loading ? <tr><td className="p-2" colSpan={6}>Đang tải…</td></tr> : (data ?? []).filter((v:any)=>{
+            {loading ? <tr><td className="p-2" colSpan={6}>Đang tải…</td></tr> : ((data as any[]) ?? []).filter((v:any)=>{
               if (status && v.status !== status) return false;
               const s = (q||"").toLowerCase(); if (!s) return true;
-              const model = (()=>{ const m = modelById.get(v.car_model_id); return m ? `${m.brand} ${m.model} ${m.variant ?? ""}` : v.model?.model ?? ''; })().toLowerCase();
+              const model = (()=>{ const m: any = modelById.get(v.car_model_id); return m ? `${m.brand} ${m.model} ${m.variant ?? ""}` : v.model?.model ?? ''; })().toLowerCase();
               return (String(v.vin ?? '').toLowerCase().includes(s) || model.includes(s));
             }).map((v: any) => (
               <tr key={v.id} className="border-t">
                 <td className="p-2">#{v.id}</td>
                 <td className="p-2 font-mono">{v.vin ?? <span className="text-gray-400">(chưa có)</span>}</td>
-                <td className="p-2">{(()=>{ const m = modelById.get(v.car_model_id); return m ? `${m.brand} ${m.model} ${m.variant ?? ""}` : v.car_model_id; })()}</td>
+                <td className="p-2">{(()=>{ const m: any = modelById.get(v.car_model_id); return m ? `${m.brand} ${m.model} ${m.variant ?? ""}` : v.car_model_id; })()}</td>
                 <td className="p-2">{renderStatus(v.status)}</td>
                 <td className="p-2">{v.arrived_at?.split("T")[0] ?? ""}</td>
                 <td className="p-2 space-x-2">
@@ -60,7 +60,7 @@ export default function Inventory({ api, can }: { api: ReturnType<typeof useApi>
         <table className="w-full table-auto text-sm">
           <thead><tr className="text-left text-gray-600"><th className="p-2">ID</th><th className="p-2">VIN</th><th className="p-2">Mẫu xe</th><th className="p-2">Trạng thái</th><th className="p-2">Ngày về</th><th className="p-2">Thao tác</th></tr></thead>
           <tbody>
-            {loading ? <tr><td className="p-2" colSpan={6}>Đang tải…</td></tr> : (data ?? []).filter((v:any)=>{
+            {loading ? <tr><td className="p-2" colSpan={6}>Đang tải…</td></tr> : ((data as any[]) ?? []).filter((v:any)=>{
               if (status && v.status !== status) return false;
               const s = (q||"").toLowerCase(); if (!s) return true;
               const model = String(v.model?.model ?? '').toLowerCase();
@@ -73,9 +73,9 @@ export default function Inventory({ api, can }: { api: ReturnType<typeof useApi>
                 <td className="p-2">{renderStatus(v.status)}</td>
                 <td className="p-2">{v.arrivedAt?.split('T')[0] ?? ''}</td>
                 <td className="p-2 space-x-2">
-                  <Button onClick={()=>api.markVehicleArrived(v.id).then(reload)} className="bg-blue-600 text-white" disabled={!can("VEHICLE.MARK_ARRIVED")}>Đánh dấu về đại lý</Button>
+                  <Button variant="info" onClick={()=>api.markVehicleArrived(v.id).then(reload)} disabled={!can("VEHICLE.MARK_ARRIVED")}>Đánh dấu về đại lý</Button>
                   <Button onClick={()=>{ setSelected(v); setVinInput(v.vin ?? ""); setOpenVIN(true); }} disabled={!can("VEHICLE.SET_VIN")}>Gán VIN</Button>
-                  <Button onClick={()=>{ setSelected(v); setOpenDeliver(true); }} className="bg-black text-white" disabled={v.status!=="AT_DEALER" || !can("DELIVERY.CREATE")}>Lập phiếu giao</Button>
+                  <Button variant="primary" onClick={()=>{ setSelected(v); setOpenDeliver(true); }} disabled={v.status!=="AT_DEALER" || !can("DELIVERY.CREATE")}>Lập phiếu giao</Button>
                 </td>
               </tr>
             ))}
@@ -111,12 +111,13 @@ export default function Inventory({ api, can }: { api: ReturnType<typeof useApi>
 function CreateDeliveryModal({ open, onClose, vehicle, api, onDone }: { open: boolean; onClose: ()=>void; vehicle: any | null; api: ReturnType<typeof useApi>; onDone: ()=>void; }) {
   const backend = BACKEND_MODE;
   const [form, setForm] = React.useState<any>(null);
-  const { data: orders } = useReloadable((api as any).listCustomerOrders ?? api.listOrders, []);
-  const { data: vouchers } = useReloadable(api.listVouchers, []);
+  const { data: orders } = useReloadable<any[]>((api as any).listCustomerOrders ?? api.listOrders, []);
+  const { data: vouchers } = useReloadable<any[]>(api.listVouchers, []);
   const [err, setErr] = React.useState<string | null>(null);
   React.useEffect(()=>{
     if (!form?.orderId) return;
-    const o: any = (orders ?? []).find((x:any)=> x.id === form.orderId);
+    const ordersArr = (orders as any[]) ?? [];
+    const o: any = ordersArr.find((x:any)=> x.id === form.orderId);
     if (!o) return;
     setForm((prev:any) => ({
       ...prev,
@@ -143,7 +144,7 @@ function CreateDeliveryModal({ open, onClose, vehicle, api, onDone }: { open: bo
             <label className="text-xs">Đơn hàng</label>
             <select className="w-full rounded-xl border p-2" value={form.orderId} onChange={e=>setForm({...form, orderId: e.target.value? Number(e.target.value): ''})}>
               <option value="">Chọn đơn</option>
-              {(orders ?? []).map((o:any)=> <option key={o.id} value={o.id}>#{o.id} – {o.username ?? o.userId ?? ''} · {o.vehicleModel ?? ''}</option>)}
+              {((orders as any[]) ?? []).filter((o:any)=> { const s=String(o.status||'').toUpperCase(); return s!=='COMPLETED' && s!=='DELIVERED' && s!=='CANCELLED'; }).map((o:any)=> <option key={o.id} value={o.id}>#{o.id} – {o.username ?? o.userId ?? ''} · {o.vehicleModel ?? ''}</option>)}
             </select>
           </div>
           <input className="w-full rounded-xl border p-2 bg-gray-100" placeholder="Tên khách hàng" value={form.customerName} disabled readOnly />
@@ -152,7 +153,7 @@ function CreateDeliveryModal({ open, onClose, vehicle, api, onDone }: { open: bo
             <label className="text-xs">Mã voucher (nếu có)</label>
             <select className="w-full rounded-xl border p-2" value={form.voucherCode ?? ''} onChange={e=>setForm({...form, voucherCode:e.target.value})}>
               <option value="">Không áp dụng</option>
-              {(vouchers ?? []).map((v:any)=> <option key={v.id} value={v.code}>{v.code} – {v.title}</option>)}
+              {((vouchers as any[]) ?? []).map((v:any)=> <option key={v.id} value={v.code}>{v.code} – {v.title}</option>)}
             </select>
           </div>
         </div>

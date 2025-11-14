@@ -4,15 +4,15 @@ import { useReloadable } from "../hooks/useReloadable";
 import { useApi } from "../lib/api";
 
 export default function CustomerOrders({ api, can }: { api: ReturnType<typeof useApi>, can: (p:string)=>boolean }) {
-  const { loading, data, error, reload } = useReloadable((api as any).listCustomerOrders, []);
+  const { loading, data, error, reload } = useReloadable<any[]>((api as any).listCustomerOrders, []);
   const [q, setQ] = React.useState("");
-  const { data: models } = useReloadable(api.listModels, []);
+  const { data: models } = useReloadable<any[]>(api.listModels, []);
   const [open, setOpen] = React.useState(false);
   const [err, setErr] = React.useState<string | null>(null);
   const [notice, setNotice] = React.useState<string | null>(null);
   const [form, setForm] = React.useState<{ vehicleId: number | ""; customerInfo: string; brand?: string; price?: number | ""; deliveryDate?: string }>(()=>({ vehicleId: "", customerInfo: "", brand: "", price: "", deliveryDate: "" }));
 
-  const modelById = React.useMemo(()=> new Map((models ?? []).map((m: any) => [m.id, m])), [models]);
+  const modelById = React.useMemo(()=> new Map(((models ?? []) as any[]).map((m: any) => [m.id, m])), [models]);
 
   return <div className="space-y-4">
     <div className="flex items-center justify-between">
@@ -30,13 +30,14 @@ export default function CustomerOrders({ api, can }: { api: ReturnType<typeof us
           <tr className="text-left text-gray-600">
             <th className="p-2">ID</th>
             <th className="p-2">Khách hàng</th>
+            <th className="p-2">Nhân viên</th>
             <th className="p-2">Mẫu xe</th>
             <th className="p-2">Giá</th>
             <th className="p-2">Trạng thái</th>
           </tr>
         </thead>
         <tbody>
-          {loading ? <tr><td className="p-2" colSpan={5}>Đang tải…</td></tr> : (data ?? []).filter((o:any)=>{
+          {loading ? <tr><td className="p-2" colSpan={6}>Đang tải…</td></tr> : ((data as any[]) ?? []).filter((o:any)=>{
             const s=(q||"").toLowerCase(); if(!s) return true;
             const model = modelById.get(o.vehicleId)?.model ?? o.vehicleModel ?? '';
             return (String(o.customerInfo ?? '').toLowerCase().includes(s) || String(model).toLowerCase().includes(s));
@@ -44,6 +45,7 @@ export default function CustomerOrders({ api, can }: { api: ReturnType<typeof us
             <tr key={o.id} className="border-t">
               <td className="p-2">#{o.id}</td>
               <td className="p-2">{o.customerInfo ?? ''}</td>
+              <td className="p-2">{o.username ?? ''}</td>
               <td className="p-2">{o.vehicleModel ?? (modelById.get(o.vehicleId)?.model ?? o.vehicleId)}</td>
               <td className="p-2">{o.price ?? ''}</td>
               <td className="p-2">{o.status ?? ''}</td>
@@ -66,7 +68,7 @@ export default function CustomerOrders({ api, can }: { api: ReturnType<typeof us
                       setForm({ ...form, vehicleId: id, brand: m?.brand?.name ?? '' });
                     }}>
               <option value="">Chọn mẫu</option>
-              {(models ?? []).map((m:any) => (
+              {((models as any[]) ?? []).map((m:any) => (
                 <option key={m.id} value={m.id}>{(m.brand?.name ?? '')} {m.model}</option>
               ))}
             </select>

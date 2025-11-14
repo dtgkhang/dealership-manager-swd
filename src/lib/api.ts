@@ -301,6 +301,28 @@ export function useApi(role: Role) {
       return data;
     },
 
+    // Admin: Users (manager only)
+    listUsers: async () => {
+      const data = await http('/api/admin/users');
+      return data;
+    },
+    createUser: async (args: { name: string; email: string; password: string; phoneNumber?: string; address?: string; roleId?: number }) => {
+      const data = await http('/api/admin/users', { method: 'POST', body: JSON.stringify(args) });
+      return data;
+    },
+    updateUserRole: async (id: number, roleId: number) => {
+      const data = await http(`/api/admin/users/${id}/role`, { method: 'PATCH', body: JSON.stringify({ roleId }) });
+      return data;
+    },
+    updateUserPassword: async (id: number, password: string) => {
+      const data = await http(`/api/admin/users/${id}/password`, { method: 'PATCH', body: JSON.stringify({ password }) });
+      return data;
+    },
+    deleteUser: async (id: number) => {
+      await http(`/api/admin/users/${id}`, { method: 'DELETE' });
+      return true;
+    },
+
     createVoucher: async (args: any) => {
       if (!ROLE_PERMS[role].includes("VOUCHER.CREATE")) throw new Error("Không có quyền");
       const payload: any = {
