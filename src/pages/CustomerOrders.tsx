@@ -4,6 +4,7 @@ import { useReloadable } from "../hooks/useReloadable";
 import { useApi } from "../lib/api";
 import { currency } from "../lib/utils";
 import { formatDate, formatDateTime } from "../lib/format";
+import { getRoleFromToken } from "../lib/api";
 
 export default function CustomerOrders({ api, can }: { api: ReturnType<typeof useApi>, can: (p:string)=>boolean }) {
   const { loading, data, error, reload } = useReloadable<any[]>((api as any).listCustomerOrders, []);
@@ -14,25 +15,86 @@ export default function CustomerOrders({ api, can }: { api: ReturnType<typeof us
   const [err, setErr] = React.useState<string | null>(null);
   const [notice, setNotice] = React.useState<string | null>(null);
   const [form, setForm] = React.useState<{ vehicleId: number | ""; customerInfo: string; brand?: string; price?: number | ""; deliveryDate?: string; voucherCode?: string }>(()=>({ vehicleId: "", customerInfo: "", brand: "", price: "", deliveryDate: "", voucherCode: "" }));
+  const [status, setStatus] = React.useState<string|"">("");
+  const [createdFrom, setCreatedFrom] = React.useState("");
+  const [createdTo, setCreatedTo] = React.useState("");
+  const [deliveryFrom, setDeliveryFrom] = React.useState("");
+  const [deliveryTo, setDeliveryTo] = React.useState("");
+  const [priceMin, setPriceMin] = React.useState<string>("");
+  const [priceMax, setPriceMax] = React.useState<string>("");
+  const [staffQ, setStaffQ] = React.useState<string>("");
+  const [advancedOpen, setAdvancedOpen] = React.useState(false);
+  const isManager = getRoleFromToken() === 'MANAGER';
 
   const modelById = React.useMemo(()=> new Map(((models ?? []) as any[]).map((m: any) => [m.id, m])), [models]);
 
   return <div className="space-y-4">
     <div className="flex items-center justify-between">
       <h2 className="text-lg font-semibold">Đơn khách hàng</h2>
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <input className="rounded-xl border p-2 text-sm" placeholder="Tìm khách / mẫu xe" value={q} onChange={e=>setQ(e.target.value)} />
+        <select className="rounded-xl border p-2 text-sm" value={status} onChange={e=>setStatus(e.target.value)}>
+          <option value="">Tất cả</option>
+          <option value="PENDING">PENDING</option>
+          <option value="COMPLETED">COMPLETED</option>
+          <option value="CANCELLED">CANCELLED</option>
+        </select>
+        <Button onClick={()=>setAdvancedOpen(v=>!v)}>{advancedOpen ? 'Ẩn bộ lọc' : 'Bộ lọc nâng cao'}</Button>
         <Button variant="primary" onClick={()=>{ setOpen(true); setErr(null); setNotice(null); }}>Tạo đơn</Button>
       </div>
+
+      {advancedOpen && (
+        <div className="mt-2 rounded-xl border p-3">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 items-end">
+            <div>
+              <label className="text-xs text-gray-600">Ngày tạo từ</label>
+              <input className="w-full rounded-xl border p-2 text-sm" type="date" value={createdFrom} onChange={e=>setCreatedFrom(e.target.value)} />
+            </div>
+            <div>
+              <label className="text-xs text-gray-600">Ngày tạo đến</label>
+              <input className="w-full rounded-xl border p-2 text-sm" type="date" value={createdTo} onChange={e=>setCreatedTo(e.target.value)} />
+            </div>
+            <div>
+              <label className="text-xs text-gray-600">Giao dự kiến từ</label>
+              <input className="w-full rounded-xl border p-2 text-sm" type="date" value={deliveryFrom} onChange={e=>setDeliveryFrom(e.target.value)} />
+            </div>
+            <div>
+              <label className="text-xs text-gray-600">Giao dự kiến đến</label>
+              <input className="w-full rounded-xl border p-2 text-sm" type="date" value={deliveryTo} onChange={e=>setDeliveryTo(e.target.value)} />
+            </div>
+            <div>
+              <label className="text-xs text-gray-600">Giá từ</label>
+              <input className="w-full rounded-xl border p-2 text-sm" type="number" placeholder="0" value={priceMin} onChange={e=>setPriceMin(e.target.value)} />
+            </div>
+            <div>
+              <label className="text-xs text-gray-600">Giá đến</label>
+              <input className="w-full rounded-xl border p-2 text-sm" type="number" placeholder="" value={priceMax} onChange={e=>setPriceMax(e.target.value)} />
+            </div>
+            {isManager && <div className="md:col-span-2">
+              <label className="text-xs text-gray-600">Nhân viên</label>
+              <input className="w-full rounded-xl border p-2 text-sm" placeholder="Tên nhân viên" value={staffQ} onChange={e=>setStaffQ(e.target.value)} />
+            </div>}
+            <div className="md:col-span-4 flex justify-end gap-2">
+              <Button onClick={()=>{ setQ(''); setStatus(''); setCreatedFrom(''); setCreatedTo(''); setDeliveryFrom(''); setDeliveryTo(''); setPriceMin(''); setPriceMax(''); setStaffQ(''); }}>Reset</Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
     <Card>
       {(() => {
         const rows: any[] = ((data as any[]) ?? []);
+        const totalOrders = rows.length;
         const completed = rows.filter(o => String(o.status||'').toUpperCase()==='COMPLETED');
-        const total = completed.reduce((sum, o:any)=> sum + Number(o.priceAfter || o.price || 0), 0);
-        return <div className="flex items-center gap-6 text-sm">
-          <div><span className="text-gray-600">Đơn hoàn tất:</span> <span className="font-semibold">{completed.length}</span></div>
-          <div><span className="text-gray-600">Doanh thu:</span> <span className="font-semibold">{currency(total)}</span></div>
+        const pending = rows.filter(o => String(o.status||'').toUpperCase()==='PENDING');
+        const cancelled = rows.filter(o => String(o.status||'').toUpperCase()==='CANCELLED');
+        const revenue = completed.reduce((sum, o:any)=> sum + Number(o.priceAfter || o.price || 0), 0);
+        return <div className="flex flex-wrap items-center gap-6 text-sm">
+          <div><span className="text-gray-600">Tổng đơn:</span> <span className="font-semibold">{totalOrders}</span></div>
+          <div><span className="text-gray-600">Đang chờ:</span> <span className="font-semibold">{pending.length}</span></div>
+          <div><span className="text-gray-600">Hoàn tất:</span> <span className="font-semibold">{completed.length}</span></div>
+          <div><span className="text-gray-600">Đã hủy:</span> <span className="font-semibold">{cancelled.length}</span></div>
+          <div><span className="text-gray-600">Doanh thu:</span> <span className="font-semibold">{currency(revenue)}</span></div>
         </div>;
       })()}
       {error && <div className="mb-2 rounded-lg bg-red-50 p-2 text-sm text-red-700">{String(error)}</div>}
@@ -44,18 +106,33 @@ export default function CustomerOrders({ api, can }: { api: ReturnType<typeof us
             <th className="p-2">ID</th>
             <th className="p-2">Ngày tạo</th>
             <th className="p-2">Khách hàng</th>
-            <th className="p-2">Nhân viên</th>
+            <th className="p-2 hidden md:table-cell">Nhân viên</th>
             <th className="p-2">Mẫu xe</th>
             <th className="p-2">Dự kiến giao</th>
             <th className="p-2">Giá</th>
-            <th className="p-2">Giảm</th>
+            <th className="p-2 hidden md:table-cell">Giảm</th>
             <th className="p-2">Sau KM</th>
             <th className="p-2">Trạng thái</th>
           </tr>
         </thead>
         <tbody>
           {loading ? <tr><td className="p-2" colSpan={9}>Đang tải…</td></tr> : ((data as any[]) ?? []).filter((o:any)=>{
-            const s=(q||"").toLowerCase(); if(!s) return true;
+            const s=(q||"").toLowerCase();
+            if (status && String(o.status||'') !== status) return false;
+            // created range
+            const cISO = String(o.createdAt||''); const cd = cISO ? new Date(cISO) : null;
+            if (cd && createdFrom) { const f=new Date(createdFrom); if (cd < new Date(f.getFullYear(),f.getMonth(),f.getDate())) return false; }
+            if (cd && createdTo) { const t=new Date(createdTo); if (cd > new Date(t.getFullYear(),t.getMonth(),t.getDate(),23,59,59,999)) return false; }
+            // delivery range
+            const dISO = String(o.deliveryDate||''); const dd = dISO ? new Date(dISO) : null;
+            if (dd && deliveryFrom) { const f=new Date(deliveryFrom); if (dd < new Date(f.getFullYear(),f.getMonth(),f.getDate())) return false; }
+            if (dd && deliveryTo) { const t=new Date(deliveryTo); if (dd > new Date(t.getFullYear(),t.getMonth(),t.getDate(),23,59,59,999)) return false; }
+            // price range
+            const p = Number(o.priceAfter ?? o.price ?? 0);
+            if (priceMin && p < Number(priceMin)) return false;
+            if (priceMax && p > Number(priceMax)) return false;
+            if (isManager && staffQ && !String(o.username||'').toLowerCase().includes(staffQ.toLowerCase())) return false;
+            if (!s) return true;
             const model = modelById.get(o.vehicleId)?.model ?? o.vehicleModel ?? '';
             return (String(o.customerInfo ?? '').toLowerCase().includes(s) || String(model).toLowerCase().includes(s));
           }).map((o: any) => (
@@ -63,11 +140,11 @@ export default function CustomerOrders({ api, can }: { api: ReturnType<typeof us
               <td className="p-2">#{o.id}</td>
               <td className="p-2">{formatDateTime(o.createdAt)}</td>
               <td className="p-2">{o.customerInfo ?? ''}</td>
-              <td className="p-2">{o.username ?? ''}</td>
+              <td className="p-2 hidden md:table-cell">{o.username ?? ''}</td>
               <td className="p-2">{o.vehicleModel ?? (modelById.get(o.vehicleId)?.model ?? o.vehicleId)}</td>
               <td className="p-2">{formatDate(o.deliveryDate)}</td>
               <td className="p-2">{currency(Number(o.price || 0))}</td>
-              <td className="p-2">{currency(Number(o.discountApplied || 0))}</td>
+              <td className="p-2 hidden md:table-cell">{currency(Number(o.discountApplied || 0))}</td>
               <td className="p-2 font-semibold">{currency(Number(o.priceAfter || o.price || 0))}</td>
               <td className="p-2">{o.status ?? ''}</td>
             </tr>

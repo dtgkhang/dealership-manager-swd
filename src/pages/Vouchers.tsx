@@ -2,12 +2,20 @@ import React from "react";
 import { Button, Card, Modal } from "../components/ui";
 import { useReloadable } from "../hooks/useReloadable";
 import { currency } from "../lib/utils";
+import { formatDate } from "../lib/format";
 import { useApi } from "../lib/api";
 import type { VoucherType } from "../lib/types";
 
 export default function Vouchers({ api, can }: { api: ReturnType<typeof useApi>, can: (p:string)=>boolean }) {
   const [includeInactive, setIncludeInactive] = React.useState(false);
   const [q, setQ] = React.useState("");
+  const [type, setType] = React.useState<string|"">("");
+  const [onlyStackable, setOnlyStackable] = React.useState(false);
+  const [validFrom, setValidFrom] = React.useState("");
+  const [validTo, setValidTo] = React.useState("");
+  const [minMinPrice, setMinMinPrice] = React.useState<string>("");
+  const [maxMinPrice, setMaxMinPrice] = React.useState<string>("");
+  const [advancedOpen, setAdvancedOpen] = React.useState(false);
   const { loading, data, reload, error } = useReloadable(() => api.listVouchers(includeInactive), [includeInactive]);
   const [open, setOpen] = React.useState(false);
   const [form, setForm] = React.useState<{
@@ -20,12 +28,73 @@ export default function Vouchers({ api, can }: { api: ReturnType<typeof useApi>,
   return <div className="space-y-4">
     <div className="flex items-center justify-between">
       <h2 className="text-lg font-semibold">Mã ưu đãi</h2>
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <input className="rounded-xl border p-2 text-sm" placeholder="Tìm mã hoặc tiêu đề" value={q} onChange={e=>setQ(e.target.value)} />
         <label className="text-sm flex items-center gap-1"><input type="checkbox" checked={includeInactive} onChange={e=>setIncludeInactive(e.target.checked)} /> Hiện cả đã hủy</label>
+        <Button onClick={()=>setAdvancedOpen(v=>!v)}>{advancedOpen ? 'Ẩn bộ lọc' : 'Bộ lọc nâng cao'}</Button>
         <Button variant="primary" onClick={()=>setOpen(true)} disabled={!can("VOUCHER.CREATE")}>Tạo mã</Button>
       </div>
+
+      {advancedOpen && (
+        <div className="mt-2 rounded-xl border p-3">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 items-end">
+            <div>
+              <label className="text-xs text-gray-600">Loại</label>
+              <select className="w-full rounded-xl border p-2 text-sm" value={type} onChange={e=>setType(e.target.value)}>
+                <option value="">Tất cả</option>
+                <option value="FLAT">FLAT</option>
+                <option value="PERCENT">PERCENT</option>
+              </select>
+            </div>
+            <div className="flex items-center gap-2">
+              <input id="stackable" type="checkbox" checked={onlyStackable} onChange={e=>setOnlyStackable(e.target.checked)} />
+              <label htmlFor="stackable" className="text-xs text-gray-600">Chỉ cộng dồn</label>
+            </div>
+            <div>
+              <label className="text-xs text-gray-600">Hiệu lực từ</label>
+              <input className="w-full rounded-xl border p-2 text-sm" type="date" value={validFrom} onChange={e=>setValidFrom(e.target.value)} />
+            </div>
+            <div>
+              <label className="text-xs text-gray-600">Hiệu lực đến</label>
+              <input className="w-full rounded-xl border p-2 text-sm" type="date" value={validTo} onChange={e=>setValidTo(e.target.value)} />
+            </div>
+            <div>
+              <label className="text-xs text-gray-600">Min price từ</label>
+              <input className="w-full rounded-xl border p-2 text-sm" type="number" placeholder="0" value={minMinPrice} onChange={e=>setMinMinPrice(e.target.value)} />
+            </div>
+            <div>
+              <label className="text-xs text-gray-600">Min price đến</label>
+              <input className="w-full rounded-xl border p-2 text-sm" type="number" placeholder="" value={maxMinPrice} onChange={e=>setMaxMinPrice(e.target.value)} />
+            </div>
+            <div className="md:col-span-4 flex justify-end gap-2">
+              <Button onClick={()=>{ setQ(''); setType(''); setOnlyStackable(false); setValidFrom(''); setValidTo(''); setMinMinPrice(''); setMaxMinPrice(''); }}>Reset</Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
+    <Card>
+      {(() => {
+        const rows: any[] = ((data as any[]) ?? []);
+        const now = new Date();
+        const total = rows.length;
+        const active = rows.filter(v => !!v.active).length;
+        const inactive = total - active;
+        const validNow = rows.filter((v:any) => {
+          const from = v.usable_from ? new Date(v.usable_from) : null;
+          const to = v.usable_to ? new Date(v.usable_to) : null;
+          if (from && now < new Date(from.getFullYear(),from.getMonth(),from.getDate())) return false;
+          if (to && now > new Date(to.getFullYear(),to.getMonth(),to.getDate(),23,59,59,999)) return false;
+          return !!v.active;
+        }).length;
+        return <div className="flex flex-wrap items-center gap-6 text-sm">
+          <div><span className="text-gray-600">Tổng voucher:</span> <span className="font-semibold">{total}</span></div>
+          <div><span className="text-gray-600">Đang hoạt động:</span> <span className="font-semibold">{active}</span></div>
+          <div><span className="text-gray-600">Đã hủy:</span> <span className="font-semibold">{inactive}</span></div>
+          <div><span className="text-gray-600">Đang hiệu lực:</span> <span className="font-semibold">{validNow}</span></div>
+        </div>;
+      })()}
+    </Card>
     <Card>
       {error && <div className="mb-2 rounded-lg bg-red-50 p-2 text-sm text-red-700">{String(error)}</div>}
       <div className="overflow-x-auto">
@@ -35,10 +104,10 @@ export default function Vouchers({ api, can }: { api: ReturnType<typeof useApi>,
             <th className="p-2">Mã</th>
             <th className="p-2">Loại</th>
             <th className="p-2">Tiêu đề</th>
-            <th className="p-2">Điều kiện</th>
-            <th className="p-2">Tạo lúc</th>
+            <th className="p-2 hidden md:table-cell">Điều kiện</th>
+            <th className="p-2 hidden md:table-cell">Tạo lúc</th>
             <th className="p-2">Hiệu lực</th>
-            <th className="p-2">Cộng dồn</th>
+            <th className="p-2 hidden md:table-cell">Cộng dồn</th>
             <th className="p-2">Trạng thái</th>
             <th className="p-2">Thao tác</th>
           </tr>
@@ -46,20 +115,30 @@ export default function Vouchers({ api, can }: { api: ReturnType<typeof useApi>,
         <tbody>
           {loading ? <tr><td className="p-2" colSpan={9}>Đang tải…</td></tr> : ((data as any[]) ?? []).filter((v: any) => {
             const s = (q||"").toLowerCase();
+            if (type && v.type !== type) return false;
+            if (onlyStackable && !v.stackable) return false;
+            // validity intersects range
+            const from = v.usable_from ? new Date(v.usable_from) : null;
+            const to = v.usable_to ? new Date(v.usable_to) : null;
+            if (validFrom) { const vf = new Date(validFrom); if (to && to < new Date(vf.getFullYear(), vf.getMonth(), vf.getDate())) return false; }
+            if (validTo) { const vt = new Date(validTo); if (from && from > new Date(vt.getFullYear(), vt.getMonth(), vt.getDate(), 23,59,59,999)) return false; }
+            const minP = Number(v.min_price ?? 0);
+            if (minMinPrice && minP < Number(minMinPrice)) return false;
+            if (maxMinPrice && minP > Number(maxMinPrice)) return false;
             if (!s) return true;
             return (v.code?.toLowerCase()?.includes(s) || v.title?.toLowerCase()?.includes(s));
           }).map((v: any) => {
-            const created = String(v.created_at||'').split('T').join(' ').slice(0,16);
-            const range = `${(v.usable_from||'').split('T')[0]||'—'} → ${(v.usable_to||'').split('T')[0]||'—'}`;
+            const created = String(v.created_at||'');
+            const range = `${formatDate(v.usable_from)} → ${formatDate(v.usable_to)}`;
             return (
               <tr key={v.id} className="border-t">
                 <td className="p-2 font-mono">{v.code}</td>
                 <td className="p-2">{v.type}</td>
                 <td className="p-2">{v.title}</td>
-                <td className="p-2 text-gray-600">Tối thiểu {currency(v.min_price)} · Tối đa {currency(v.max_discount)}</td>
-                <td className="p-2">{created}</td>
+                <td className="p-2 text-gray-600 hidden md:table-cell">Tối thiểu {currency(v.min_price)} · Tối đa {currency(v.max_discount)}</td>
+                <td className="p-2 hidden md:table-cell">{created ? created.split('T').join(' ').slice(0,16) : ''}</td>
                 <td className="p-2">{range}</td>
-                <td className="p-2">{v.stackable ? 'Có' : 'Không'}</td>
+                <td className="p-2 hidden md:table-cell">{v.stackable ? 'Có' : 'Không'}</td>
                 <td className="p-2">{v.active ? 'Hoạt động' : 'Đã hủy'}</td>
                 <td className="p-2 space-x-2">
                   {v.active ? (

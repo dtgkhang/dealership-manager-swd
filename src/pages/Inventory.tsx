@@ -30,6 +30,21 @@ export default function Inventory({ api, can }: { api: ReturnType<typeof useApi>
       </div>
     </div>
     <Card>
+      {(() => {
+        const rows: any[] = ((data as any[]) ?? []);
+        const total = rows.length;
+        const onOrder = rows.filter((v:any)=> String(v.status||'').toUpperCase()==='ON_ORDER').length;
+        const atDealer = rows.filter((v:any)=> String(v.status||'').toUpperCase()==='AT_DEALER').length;
+        const delivered = rows.filter((v:any)=> String(v.status||'').toUpperCase()==='DELIVERED').length;
+        return <div className="flex flex-wrap items-center gap-6 text-sm">
+          <div><span className="text-gray-600">Tổng xe:</span> <span className="font-semibold">{total}</span></div>
+          <div><span className="text-gray-600">ON_ORDER:</span> <span className="font-semibold">{onOrder}</span></div>
+          <div><span className="text-gray-600">AT_DEALER:</span> <span className="font-semibold">{atDealer}</span></div>
+          <div><span className="text-gray-600">DELIVERED:</span> <span className="font-semibold">{delivered}</span></div>
+        </div>;
+      })()}
+    </Card>
+    <Card>
       {error && <div className="mb-2 rounded-lg bg-red-50 p-2 text-sm text-red-700">{String(error)}</div>}
       {!BACKEND_MODE ? (
         <div className="overflow-x-auto">

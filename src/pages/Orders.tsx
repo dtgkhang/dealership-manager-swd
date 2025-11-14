@@ -7,6 +7,11 @@ import { useApi } from "../lib/api";
 export default function Orders({ api, can }: { api: ReturnType<typeof useApi>, can: (p:string)=>boolean }) {
   const { loading, data, error, reload } = useReloadable<any[]>(api.listOrders, []);
   const [status, setStatus] = React.useState<string|"">("");
+  const [etaFrom, setEtaFrom] = React.useState<string>("");
+  const [etaTo, setEtaTo] = React.useState<string>("");
+  const [createdFrom, setCreatedFrom] = React.useState<string>("");
+  const [createdTo, setCreatedTo] = React.useState<string>("");
+  const [advancedOpen, setAdvancedOpen] = React.useState(false);
   const [q, setQ] = React.useState("");
   const [open, setOpen] = React.useState(false);
   
@@ -22,7 +27,7 @@ export default function Orders({ api, can }: { api: ReturnType<typeof useApi>, c
   return <div className="space-y-4">
     <div className="flex items-center justify-between">
       <h2 className="text-lg font-semibold">Đặt PO từ hãng</h2>
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <input className="rounded-xl border p-2 text-sm" placeholder="Tìm số PO hoặc ghi chú" value={q} onChange={e=>setQ(e.target.value)} />
         <select className="rounded-xl border p-2 text-sm" value={status} onChange={e=>setStatus(e.target.value)}>
           <option value="">Tất cả</option>
@@ -31,9 +36,53 @@ export default function Orders({ api, can }: { api: ReturnType<typeof useApi>, c
           <option value="CONFIRMED">CONFIRMED</option>
           <option value="CANCELLED">CANCELLED</option>
         </select>
-      <Button variant="primary" onClick={()=>setOpen(true)} disabled={!can("ORDER.CREATE")}>Tạo PO</Button>
+        <Button onClick={()=>setAdvancedOpen(v=>!v)}>{advancedOpen ? 'Ẩn bộ lọc' : 'Bộ lọc nâng cao'}</Button>
+        <Button variant="primary" onClick={()=>setOpen(true)} disabled={!can("ORDER.CREATE")}>Tạo PO</Button>
       </div>
+
+      {advancedOpen && (
+        <div className="mt-2 rounded-xl border p-3">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 items-end">
+            <div>
+              <label className="text-xs text-gray-600">ETA từ</label>
+              <input className="w-full rounded-xl border p-2 text-sm" type="date" value={etaFrom} onChange={e=>setEtaFrom(e.target.value)} />
+            </div>
+            <div>
+              <label className="text-xs text-gray-600">ETA đến</label>
+              <input className="w-full rounded-xl border p-2 text-sm" type="date" value={etaTo} onChange={e=>setEtaTo(e.target.value)} />
+            </div>
+            <div>
+              <label className="text-xs text-gray-600">Ngày tạo từ</label>
+              <input className="w-full rounded-xl border p-2 text-sm" type="date" value={createdFrom} onChange={e=>setCreatedFrom(e.target.value)} />
+            </div>
+            <div>
+              <label className="text-xs text-gray-600">Ngày tạo đến</label>
+              <input className="w-full rounded-xl border p-2 text-sm" type="date" value={createdTo} onChange={e=>setCreatedTo(e.target.value)} />
+            </div>
+            <div className="md:col-span-4 flex justify-end gap-2">
+              <Button onClick={()=>{ setQ(""); setStatus(""); setEtaFrom(""); setEtaTo(""); setCreatedFrom(""); setCreatedTo(""); }}>Reset</Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
+    <Card>
+      {(() => {
+        const rows: any[] = ((data as any[]) ?? []);
+        const total = rows.length;
+        const draft = rows.filter(o => String(o.status||'').toUpperCase()==='DRAFT').length;
+        const submitted = rows.filter(o => String(o.status||'').toUpperCase()==='SUBMITTED').length;
+        const confirmed = rows.filter(o => String(o.status||'').toUpperCase()==='CONFIRMED').length;
+        const cancelled = rows.filter(o => String(o.status||'').toUpperCase()==='CANCELLED').length;
+        return <div className="flex flex-wrap items-center gap-6 text-sm">
+          <div><span className="text-gray-600">Tổng PO:</span> <span className="font-semibold">{total}</span></div>
+          <div><span className="text-gray-600">Draft:</span> <span className="font-semibold">{draft}</span></div>
+          <div><span className="text-gray-600">Submitted:</span> <span className="font-semibold">{submitted}</span></div>
+          <div><span className="text-gray-600">Confirmed:</span> <span className="font-semibold">{confirmed}</span></div>
+          <div><span className="text-gray-600">Đã hủy:</span> <span className="font-semibold">{cancelled}</span></div>
+        </div>;
+      })()}
+    </Card>
     <Card>
       {notice && <div className="mb-2 rounded-lg bg-green-50 p-2 text-sm text-green-700">{notice}</div>}
       {error && <div className="mb-2 rounded-lg bg-red-50 p-2 text-sm text-red-700">{String(error)}</div>}
@@ -44,7 +93,7 @@ export default function Orders({ api, can }: { api: ReturnType<typeof useApi>, c
             <th className="p-2">Số PO</th>
             <th className="p-2">Trạng thái</th>
             <th className="p-2">Ngày dự kiến</th>
-            <th className="p-2">Ghi chú</th>
+            <th className="p-2 hidden md:table-cell">Ghi chú</th>
             <th className="p-2">Thao tác</th>
           </tr>
         </thead>
@@ -52,6 +101,16 @@ export default function Orders({ api, can }: { api: ReturnType<typeof useApi>, c
           {loading ? <tr><td className="p-2" colSpan={5}>Đang tải…</td></tr> : (data ?? []).filter((o: any) => {
             const s = (q||"").toLowerCase();
             if (status && o.status !== status) return false;
+            // ETA filter
+            const etaISO = String(o.etaAtDealer ?? o.eta_at_dealer ?? '');
+            const eta = etaISO ? new Date(etaISO) : null;
+            if (eta && etaFrom) { const f = new Date(etaFrom); if (eta < new Date(f.getFullYear(), f.getMonth(), f.getDate())) return false; }
+            if (eta && etaTo) { const t = new Date(etaTo); if (eta > new Date(t.getFullYear(), t.getMonth(), t.getDate(), 23,59,59,999)) return false; }
+            // Created filter
+            const createdISO = String(o.createdAt ?? o.created_at ?? '');
+            const created = createdISO ? new Date(createdISO) : null;
+            if (created && createdFrom) { const f = new Date(createdFrom); if (created < new Date(f.getFullYear(), f.getMonth(), f.getDate())) return false; }
+            if (created && createdTo) { const t = new Date(createdTo); if (created > new Date(t.getFullYear(), t.getMonth(), t.getDate(), 23,59,59,999)) return false; }
             if (!s) return true;
             return (String(o.orderNo ?? o.order_no ?? '').toLowerCase().includes(s) || String(o.note ?? '').toLowerCase().includes(s));
           }).map((o: any) => (
@@ -59,7 +118,7 @@ export default function Orders({ api, can }: { api: ReturnType<typeof useApi>, c
               <td className="p-2 font-mono">{o.orderNo ?? o.order_no ?? `#${o.id}`}</td>
               <td className="p-2"><Badge className="bg-gray-100">{o.status ?? ''}</Badge></td>
               <td className="p-2">{(o.etaAtDealer ?? o.eta_at_dealer ?? '').toString().split('T')[0]}</td>
-              <td className="p-2">{o.note ?? ''}</td>
+              <td className="p-2 hidden md:table-cell">{o.note ?? ''}</td>
               <td className="p-2 space-x-2">
                 <Button onClick={async()=>{ await api.updateOrderStatus(o.id, 'SUBMITTED'); setNotice(`Đã gửi PO ${o.orderNo ?? o.id}`); reload(); }} disabled={!can("ORDER.UPDATE_STATUS") || (o.status==='SUBMITTED' || o.status==='CONFIRMED' || o.status==='CANCELLED')}>
                   Gửi

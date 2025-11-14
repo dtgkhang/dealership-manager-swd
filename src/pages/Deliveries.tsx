@@ -4,6 +4,7 @@ import { useReloadable } from "../hooks/useReloadable";
 import { useApi } from "../lib/api";
 import { currency } from "../lib/utils";
 import { formatDateTime } from "../lib/format";
+import { getRoleFromToken } from "../lib/api";
 
 export default function Deliveries({ api, can }: { api: ReturnType<typeof useApi>, can: (p:string)=>boolean }) {
   const { loading, data, error, reload } = useReloadable(api.listDeliveries, []);
@@ -13,6 +14,16 @@ export default function Deliveries({ api, can }: { api: ReturnType<typeof useApi
   const [open, setOpen] = React.useState(false);
   const [form, setForm] = React.useState<{ orderId: number | ""; vehicleUnitId?: number | ""; customerName?: string; priceBefore?: number | ""; voucherCode?: string; status?: string }>(()=>({ orderId: "", vehicleUnitId: "", customerName: "", priceBefore: "", voucherCode: "", status: "Pending" }));
   const [err, setErr] = React.useState<string | null>(null);
+  // Filters
+  const [status, setStatus] = React.useState<string|"">("");
+  const [dateFrom, setDateFrom] = React.useState("");
+  const [dateTo, setDateTo] = React.useState("");
+  const [staffQ, setStaffQ] = React.useState("");
+  const [modelQ, setModelQ] = React.useState("");
+  const [priceMin, setPriceMin] = React.useState("");
+  const [priceMax, setPriceMax] = React.useState("");
+  const [advancedOpen, setAdvancedOpen] = React.useState(false);
+  const isManager = getRoleFromToken() === 'MANAGER';
 
   // Prefill customerName, priceBefore from selected order
   React.useEffect(()=>{
@@ -30,19 +41,64 @@ export default function Deliveries({ api, can }: { api: ReturnType<typeof useApi
   return <div className="space-y-4">
     <div className="flex items-center justify-between">
       <h2 className="text-lg font-semibold">Phiếu giao xe</h2>
-      <Button variant="primary" onClick={()=>setOpen(true)} disabled={!can("DELIVERY.CREATE")}>Tạo phiếu</Button>
+      <div className="flex flex-wrap items-center gap-2">
+        <select className="rounded-xl border p-2 text-sm" value={status} onChange={e=>setStatus(e.target.value)}>
+          <option value="">Tất cả</option>
+          <option value="PENDING">PENDING</option>
+          <option value="DELIVERED">DELIVERED</option>
+          <option value="COMPLETED">COMPLETED</option>
+          <option value="CANCELLED">CANCELLED</option>
+        </select>
+        <Button onClick={()=>setAdvancedOpen(v=>!v)}>{advancedOpen ? 'Ẩn bộ lọc' : 'Bộ lọc nâng cao'}</Button>
+        <Button variant="primary" onClick={()=>setOpen(true)} disabled={!can("DELIVERY.CREATE")}>Tạo phiếu</Button>
+      </div>
+
+      {advancedOpen && (
+        <div className="mt-2 rounded-xl border p-3">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 items-end">
+            <div>
+              <label className="text-xs text-gray-600">Ngày giao từ</label>
+              <input className="w-full rounded-xl border p-2 text-sm" type="date" value={dateFrom} onChange={e=>setDateFrom(e.target.value)} />
+            </div>
+            <div>
+              <label className="text-xs text-gray-600">Ngày giao đến</label>
+              <input className="w-full rounded-xl border p-2 text-sm" type="date" value={dateTo} onChange={e=>setDateTo(e.target.value)} />
+            </div>
+            <div>
+              <label className="text-xs text-gray-600">Mẫu xe</label>
+              <input className="w-full rounded-xl border p-2 text-sm" placeholder="Nhập tên mẫu/ID" value={modelQ} onChange={e=>setModelQ(e.target.value)} />
+            </div>
+            <div>
+              <label className="text-xs text-gray-600">Nhân viên</label>
+              <input className="w-full rounded-xl border p-2 text-sm" placeholder="Tên nhân viên" value={staffQ} onChange={e=>setStaffQ(e.target.value)} disabled={!isManager} />
+            </div>
+            <div>
+              <label className="text-xs text-gray-600">Giá từ</label>
+              <input className="w-full rounded-xl border p-2 text-sm" type="number" placeholder="0" value={priceMin} onChange={e=>setPriceMin(e.target.value)} />
+            </div>
+            <div>
+              <label className="text-xs text-gray-600">Giá đến</label>
+              <input className="w-full rounded-xl border p-2 text-sm" type="number" placeholder="" value={priceMax} onChange={e=>setPriceMax(e.target.value)} />
+            </div>
+            <div className="md:col-span-4 flex justify-end gap-2">
+              <Button onClick={()=>{ setStatus(''); setDateFrom(''); setDateTo(''); setModelQ(''); setPriceMin(''); setPriceMax(''); setStaffQ(''); }}>Reset</Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
     <Card>
       {(() => {
         const rows: any[] = ((data as any[]) ?? []);
-        const delivered = rows.filter(d => {
-          const s = String(d.status || '').toUpperCase();
-          return s === 'DELIVERED' || s === 'COMPLETED';
-        });
-        const total = delivered.reduce((sum, d:any) => sum + Number(d.priceAfter || 0), 0);
-        return <div className="flex items-center gap-6 text-sm">
-          <div><span className="text-gray-600">Số phiếu đã hoàn tất:</span> <span className="font-semibold">{delivered.length}</span></div>
-          <div><span className="text-gray-600">Doanh thu:</span> <span className="font-semibold">{currency(total)}</span></div>
+        const total = rows.length;
+        const completed = rows.filter(d => ['DELIVERED','COMPLETED'].includes(String(d.status||'').toUpperCase())).length;
+        const pending = rows.filter(d => String(d.status||'').toUpperCase()==='PENDING').length;
+        const cancelled = rows.filter(d => String(d.status||'').toUpperCase()==='CANCELLED').length;
+        return <div className="flex flex-wrap items-center gap-6 text-sm">
+          <div><span className="text-gray-600">Tổng phiếu:</span> <span className="font-semibold">{total}</span></div>
+          <div><span className="text-gray-600">Đang chờ:</span> <span className="font-semibold">{pending}</span></div>
+          <div><span className="text-gray-600">Hoàn tất:</span> <span className="font-semibold">{completed}</span></div>
+          <div><span className="text-gray-600">Đã hủy:</span> <span className="font-semibold">{cancelled}</span></div>
         </div>;
       })()}
     </Card>
@@ -50,18 +106,41 @@ export default function Deliveries({ api, can }: { api: ReturnType<typeof useApi
       {error && <div className="mb-2 rounded-lg bg-red-50 p-2 text-sm text-red-700">{String(error)}</div>}
       <div className="overflow-x-auto">
       <table className="min-w-full table-auto text-xs md:text-sm">
-        <thead><tr className="text-left text-gray-600"><th className="p-2">ID</th><th className="p-2">Order</th><th className="p-2">Nhân viên</th><th className="p-2">Xe</th><th className="p-2">Ngày giao</th><th className="p-2">Trạng thái</th><th className="p-2">Giá trước</th><th className="p-2">Giảm</th><th className="p-2">Giá sau</th><th className="p-2">Thao tác</th></tr></thead>
+        <thead><tr className="text-left text-gray-600">
+          <th className="p-2 hidden md:table-cell">ID</th>
+          <th className="p-2">Order</th>
+          <th className="p-2 hidden md:table-cell">Nhân viên</th>
+          <th className="p-2">Xe</th>
+          <th className="p-2">Ngày giao</th>
+          <th className="p-2">Trạng thái</th>
+          <th className="p-2 hidden md:table-cell">Giá trước</th>
+          <th className="p-2 hidden md:table-cell">Giảm</th>
+          <th className="p-2">Giá sau</th>
+          <th className="p-2">Thao tác</th>
+        </tr></thead>
         <tbody>
-          {loading ? <tr><td className="p-2" colSpan={10}>Đang tải…</td></tr> : ((data as any[]) ?? []).map((d: any) => (
+          {loading ? <tr><td className="p-2" colSpan={10}>Đang tải…</td></tr> : ((data as any[]) ?? []).filter((d:any)=>{
+            const st = String(d.status||'').toUpperCase();
+            if (status && st !== status) return false;
+            const tISO = String(d.deliveryDate||''); const dt = tISO ? new Date(tISO) : null;
+            if (dt && dateFrom) { const f = new Date(dateFrom); if (dt < new Date(f.getFullYear(),f.getMonth(),f.getDate())) return false; }
+            if (dt && dateTo) { const t = new Date(dateTo); if (dt > new Date(t.getFullYear(),t.getMonth(),t.getDate(),23,59,59,999)) return false; }
+            const pa = Number(d.priceAfter || 0);
+            if (priceMin && pa < Number(priceMin)) return false;
+            if (priceMax && pa > Number(priceMax)) return false;
+            if (modelQ && !String(d.vehicleName || d.vehicleId || '').toLowerCase().includes(modelQ.toLowerCase())) return false;
+            if (isManager && staffQ && !String(d.staffName||'').toLowerCase().includes(staffQ.toLowerCase())) return false;
+            return true;
+          }).map((d: any) => (
             <tr key={d.id} className="border-t">
-              <td className="p-2">#{d.id}</td>
+              <td className="p-2 hidden md:table-cell">#{d.id}</td>
               <td className="p-2">{d.orderId}</td>
-              <td className="p-2">{d.staffName ?? d.username ?? ''}</td>
-              <td className="p-2">{d.vehicleId ?? ""}</td>
+              <td className="p-2 hidden md:table-cell">{d.staffName ?? d.username ?? ''}</td>
+              <td className="p-2">{d.vehicleName ?? d.vehicleId ?? ""}</td>
               <td className="p-2">{formatDateTime(d.deliveryDate)}</td>
               <td className="p-2">{d.status}</td>
-              <td className="p-2">{currency(Number(d.priceBefore || 0))}</td>
-              <td className="p-2">{currency(Number(d.discountApplied || 0))}</td>
+              <td className="p-2 hidden md:table-cell">{currency(Number(d.priceBefore || 0))}</td>
+              <td className="p-2 hidden md:table-cell">{currency(Number(d.discountApplied || 0))}</td>
               <td className="p-2 font-semibold">{currency(Number(d.priceAfter || 0))}</td>
               <td className="p-2">
                 {(() => { const s = String(d.status||'').toUpperCase(); return s!=="DELIVERED" && s!=="COMPLETED" && s!=="CANCELLED"; })() && (
