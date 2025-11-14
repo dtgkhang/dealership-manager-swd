@@ -3,6 +3,7 @@ import { Button, Card, Modal } from "../components/ui";
 import { useReloadable } from "../hooks/useReloadable";
 import { useApi } from "../lib/api";
 import { currency } from "../lib/utils";
+import { formatDateTime } from "../lib/format";
 
 export default function Deliveries({ api, can }: { api: ReturnType<typeof useApi>, can: (p:string)=>boolean }) {
   const { loading, data, error, reload } = useReloadable(api.listDeliveries, []);
@@ -47,7 +48,8 @@ export default function Deliveries({ api, can }: { api: ReturnType<typeof useApi
     </Card>
     <Card>
       {error && <div className="mb-2 rounded-lg bg-red-50 p-2 text-sm text-red-700">{String(error)}</div>}
-      <table className="w-full table-auto text-sm">
+      <div className="overflow-x-auto">
+      <table className="min-w-full table-auto text-xs md:text-sm">
         <thead><tr className="text-left text-gray-600"><th className="p-2">ID</th><th className="p-2">Order</th><th className="p-2">Nhân viên</th><th className="p-2">Xe</th><th className="p-2">Ngày giao</th><th className="p-2">Trạng thái</th><th className="p-2">Giá trước</th><th className="p-2">Giảm</th><th className="p-2">Giá sau</th><th className="p-2">Thao tác</th></tr></thead>
         <tbody>
           {loading ? <tr><td className="p-2" colSpan={10}>Đang tải…</td></tr> : ((data as any[]) ?? []).map((d: any) => (
@@ -56,7 +58,7 @@ export default function Deliveries({ api, can }: { api: ReturnType<typeof useApi
               <td className="p-2">{d.orderId}</td>
               <td className="p-2">{d.staffName ?? d.username ?? ''}</td>
               <td className="p-2">{d.vehicleId ?? ""}</td>
-              <td className="p-2">{d.deliveryDate?.split('T').join(' ').slice(0,16) ?? ""}</td>
+              <td className="p-2">{formatDateTime(d.deliveryDate)}</td>
               <td className="p-2">{d.status}</td>
               <td className="p-2">{currency(Number(d.priceBefore || 0))}</td>
               <td className="p-2">{currency(Number(d.discountApplied || 0))}</td>
@@ -77,6 +79,7 @@ export default function Deliveries({ api, can }: { api: ReturnType<typeof useApi
           ))}
         </tbody>
       </table>
+      </div>
     </Card>
 
     <Modal open={open} onClose={()=>setOpen(false)} title="Tạo phiếu giao">

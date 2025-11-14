@@ -40,15 +40,16 @@ export default function App(){
     if (r) setRole(r as Role);
   }, [logged]);
 
+  // Sắp xếp theo luồng nghiệp vụ: Hướng dẫn → Đặt PO → Kho xe → Đơn khách → Phiếu giao → Voucher → Tài khoản → Tổng quan
   const tabsAll = backendMode ? [
-    { key: "dashboard", label: "Tổng quan", roles: ["MANAGER","STAFF"] },
+    { key: "guide", label: "Hướng dẫn", roles: ["MANAGER","STAFF"] },
     { key: "orders", label: "Đặt PO", roles: ["MANAGER"] },
-    { key: "customer-orders", label: "Đơn khách", roles: ["MANAGER","STAFF"] },
     { key: "inventory", label: "Kho xe", roles: ["MANAGER","STAFF"] },
+    { key: "customer-orders", label: "Đơn khách", roles: ["MANAGER","STAFF"] },
+    { key: "deliveries", label: "Phiếu giao", roles: ["MANAGER","STAFF"] },
     { key: "vouchers", label: "Mã ưu đãi", roles: ["MANAGER"] },
     { key: "accounts", label: "Tài khoản", roles: ["MANAGER"] },
-    { key: "deliveries", label: "Phiếu giao", roles: ["MANAGER","STAFF"] },
-    { key: "guide", label: "Hướng dẫn", roles: ["MANAGER","STAFF"] },
+    { key: "dashboard", label: "Tổng quan", roles: ["MANAGER","STAFF"] },
   ] as const : [
     { key: "dashboard", label: "Tổng quan", roles: ["MANAGER","STAFF"] },
     { key: "orders", label: "Đặt PO", roles: ["MANAGER"] },

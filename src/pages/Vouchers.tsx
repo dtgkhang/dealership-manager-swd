@@ -28,7 +28,8 @@ export default function Vouchers({ api, can }: { api: ReturnType<typeof useApi>,
     </div>
     <Card>
       {error && <div className="mb-2 rounded-lg bg-red-50 p-2 text-sm text-red-700">{String(error)}</div>}
-      <table className="w-full table-auto text-sm">
+      <div className="overflow-x-auto">
+      <table className="min-w-full table-auto text-xs md:text-sm">
         <thead>
           <tr className="text-left text-gray-600">
             <th className="p-2">Mã</th>
@@ -72,6 +73,7 @@ export default function Vouchers({ api, can }: { api: ReturnType<typeof useApi>,
           })}
         </tbody>
       </table>
+      </div>
     </Card>
 
     <Modal open={open} onClose={()=>setOpen(false)} title="Tạo mã ưu đãi">

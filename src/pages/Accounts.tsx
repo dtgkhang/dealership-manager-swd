@@ -26,7 +26,8 @@ export default function Accounts({ api }: { api: ReturnType<typeof useApi> }) {
     </div>
     <Card>
       {error && <div className="mb-2 rounded-lg bg-red-50 p-2 text-sm text-red-700">{String(error)}</div>}
-      <table className="w-full table-auto text-sm">
+      <div className="overflow-x-auto">
+      <table className="min-w-full table-auto text-xs md:text-sm">
         <thead><tr className="text-left text-gray-600"><th className="p-2">ID</th><th className="p-2">Tên</th><th className="p-2">Email</th><th className="p-2">Vai trò</th><th className="p-2">Thao tác</th></tr></thead>
         <tbody>
           {loading ? <tr><td className="p-2" colSpan={5}>Đang tải…</td></tr> : ((data as any[]) ?? []).filter(u => {
@@ -47,6 +48,7 @@ export default function Accounts({ api }: { api: ReturnType<typeof useApi> }) {
           ))}
         </tbody>
       </table>
+      </div>
     </Card>
 
     <Modal open={open} onClose={()=>setOpen(false)} title="Tạo tài khoản">
@@ -91,4 +93,3 @@ export default function Accounts({ api }: { api: ReturnType<typeof useApi> }) {
     </Modal>
   </div>;
 }
-

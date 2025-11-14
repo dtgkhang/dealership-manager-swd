@@ -3,6 +3,7 @@ import { Button, Card, Modal } from "../components/ui";
 import { useReloadable } from "../hooks/useReloadable";
 import { useApi } from "../lib/api";
 import { currency } from "../lib/utils";
+import { formatDate, formatDateTime } from "../lib/format";
 
 export default function CustomerOrders({ api, can }: { api: ReturnType<typeof useApi>, can: (p:string)=>boolean }) {
   const { loading, data, error, reload } = useReloadable<any[]>((api as any).listCustomerOrders, []);
@@ -36,7 +37,8 @@ export default function CustomerOrders({ api, can }: { api: ReturnType<typeof us
       })()}
       {error && <div className="mb-2 rounded-lg bg-red-50 p-2 text-sm text-red-700">{String(error)}</div>}
       {notice && <div className="mb-2 rounded-lg bg-green-50 p-2 text-sm text-green-700">{notice}</div>}
-      <table className="w-full table-auto text-sm">
+      <div className="overflow-x-auto">
+      <table className="min-w-full table-auto text-xs md:text-sm">
         <thead>
           <tr className="text-left text-gray-600">
             <th className="p-2">ID</th>
@@ -59,11 +61,11 @@ export default function CustomerOrders({ api, can }: { api: ReturnType<typeof us
           }).map((o: any) => (
             <tr key={o.id} className="border-t">
               <td className="p-2">#{o.id}</td>
-              <td className="p-2">{String(o.createdAt ?? '').split('T').join(' ').slice(0,16)}</td>
+              <td className="p-2">{formatDateTime(o.createdAt)}</td>
               <td className="p-2">{o.customerInfo ?? ''}</td>
               <td className="p-2">{o.username ?? ''}</td>
               <td className="p-2">{o.vehicleModel ?? (modelById.get(o.vehicleId)?.model ?? o.vehicleId)}</td>
-              <td className="p-2">{String(o.deliveryDate ?? '').split('T')[0]}</td>
+              <td className="p-2">{formatDate(o.deliveryDate)}</td>
               <td className="p-2">{currency(Number(o.price || 0))}</td>
               <td className="p-2">{currency(Number(o.discountApplied || 0))}</td>
               <td className="p-2 font-semibold">{currency(Number(o.priceAfter || o.price || 0))}</td>
@@ -72,6 +74,7 @@ export default function CustomerOrders({ api, can }: { api: ReturnType<typeof us
           ))}
         </tbody>
       </table>
+      </div>
     </Card>
 
     <Modal open={open} onClose={()=>setOpen(false)} title="Tạo đơn khách hàng">

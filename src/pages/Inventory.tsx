@@ -32,7 +32,8 @@ export default function Inventory({ api, can }: { api: ReturnType<typeof useApi>
     <Card>
       {error && <div className="mb-2 rounded-lg bg-red-50 p-2 text-sm text-red-700">{String(error)}</div>}
       {!BACKEND_MODE ? (
-        <table className="w-full table-auto text-sm">
+        <div className="overflow-x-auto">
+        <table className="min-w-full table-auto text-xs md:text-sm">
           <thead><tr className="text-left text-gray-600"><th className="p-2">ID</th><th className="p-2">VIN</th><th className="p-2">Dòng xe</th><th className="p-2">Trạng thái</th><th className="p-2">Ngày về</th><th className="p-2">Thao tác</th></tr></thead>
           <tbody>
             {loading ? <tr><td className="p-2" colSpan={6}>Đang tải…</td></tr> : ((data as any[]) ?? []).filter((v:any)=>{
@@ -56,8 +57,10 @@ export default function Inventory({ api, can }: { api: ReturnType<typeof useApi>
             ))}
           </tbody>
         </table>
+        </div>
       ) : (
-        <table className="w-full table-auto text-sm">
+        <div className="overflow-x-auto">
+        <table className="min-w-full table-auto text-xs md:text-sm">
           <thead><tr className="text-left text-gray-600"><th className="p-2">ID</th><th className="p-2">VIN</th><th className="p-2">Mẫu xe</th><th className="p-2">Trạng thái</th><th className="p-2">Ngày về</th><th className="p-2">Thao tác</th></tr></thead>
           <tbody>
             {loading ? <tr><td className="p-2" colSpan={6}>Đang tải…</td></tr> : ((data as any[]) ?? []).filter((v:any)=>{
@@ -81,6 +84,7 @@ export default function Inventory({ api, can }: { api: ReturnType<typeof useApi>
             ))}
           </tbody>
         </table>
+        </div>
       )}
     </Card>
 
@@ -88,15 +92,18 @@ export default function Inventory({ api, can }: { api: ReturnType<typeof useApi>
       <Modal open={openVIN} onClose={()=>setOpenVIN(false)} title={`Gán VIN cho xe #${selected?.id}`}>
         <div className="space-y-3">
           {vinErr && <div className="rounded-lg bg-red-50 p-2 text-sm text-red-700">{vinErr}</div>}
-          <input className="w-full rounded-xl border p-2 font-mono" placeholder="JTXXXXXXXXXXXXXXX" value={vinInput} onChange={e=>setVinInput(e.target.value.toUpperCase())} />
-          <div className="flex justify-end gap-2"><Button onClick={()=>setOpenVIN(false)}>Hủy</Button><Button variant="primary" onClick={async()=>{
+          <input className="w-full rounded-xl border p-2 font-mono" placeholder="JTXXXXXXXXXXXXXXX" value={vinInput} onChange={e=>setVinInput(e.target.value)} />
+          <div className="flex flex-wrap justify-end gap-2"><Button onClick={()=>setOpenVIN(false)}>Hủy</Button><Button variant="primary" onClick={async()=>{
             try {
               setVinErr(null);
               if (!selected) return;
-              const vin = (vinInput || '').trim().toUpperCase();
-              const ok = /^[A-HJ-NPR-Z0-9]{11,17}$/.test(vin);
-              if (!ok) { setVinErr('VIN không hợp lệ (chỉ A-HJ-NPR-Z và số, 11-17 ký tự)'); return; }
-              await api.setVehicleVIN(selected.id, vin);
+              // Nới lỏng: chấp nhận VIN 8–17 ký tự, chữ/số; tự loại ký tự khác và upper-case
+              const cleaned = (vinInput || '').toString().replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+              if (cleaned.length < 8 || cleaned.length > 17 || /[^A-Z0-9]/.test(cleaned)) {
+                setVinErr('VIN không hợp lệ (8–17 ký tự chữ/số)');
+                return;
+              }
+              await api.setVehicleVIN(selected.id, cleaned);
               setOpenVIN(false); reload();
             } catch (e:any) { setVinErr(e?.message || 'Gán VIN thất bại'); }
           }}>Lưu VIN</Button></div>
