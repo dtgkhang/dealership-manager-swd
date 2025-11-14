@@ -15,6 +15,13 @@ export default function Dashboard({ api, role }: { api: ReturnType<typeof useApi
 
   const poByStatus = ['DRAFT','SUBMITTED','CONFIRMED','CANCELLED'].map(st => ({ label: st, value: ((orders as any[]) ?? []).filter(o => o.status === st).length }));
   const vehBars = [count('ON_ORDER'), count('AT_DEALER'), count('DELIVERED')];
+  const deliveredRows: any[] = ((deliveries as any[]) ?? []).filter(d => { const s=String(d.status||'').toUpperCase(); return s==='DELIVERED' || s==='COMPLETED'; });
+  const revenue = deliveredRows.reduce((sum, d:any)=> sum + Number(d.priceAfter || 0), 0);
+  // last 7 days revenue series
+  const days: string[] = Array.from({length:7}).map((_,i)=>{
+    const dt = new Date(); dt.setDate(dt.getDate() - (6 - i)); return dt.toISOString().slice(0,10);
+  });
+  const revenueByDay = days.map(d => deliveredRows.filter(x => String(x.deliveryDate||'').slice(0,10)===d).reduce((s, x:any)=> s + Number(x.priceAfter||0), 0));
 
   return (
     <div className="space-y-4">
@@ -22,7 +29,7 @@ export default function Dashboard({ api, role }: { api: ReturnType<typeof useApi
         <StatCard label="Xe tại đại lý" value={count("AT_DEALER")} />
         <StatCard label="Phiếu giao chờ" value={pendingDeliveries} />
         <StatCard label="Voucher hoạt động" value={((vouchers as any[]) ?? []).filter((v:any)=> v.active !== false).length} />
-        <StatCard label="Tổng PO" value={((orders as any[]) ?? []).length} />
+        <StatCard label="Doanh thu" value={new Intl.NumberFormat('vi-VN').format(revenue)} hint="đã giao" />
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -48,6 +55,15 @@ export default function Dashboard({ api, role }: { api: ReturnType<typeof useApi
               <div className="text-gray-600">ON_ORDER: <span className="font-medium">{vehBars[0]}</span></div>
               <div className="text-gray-600">AT_DEALER: <span className="font-medium">{vehBars[1]}</span></div>
               <div className="text-gray-600">DELIVERED: <span className="font-medium">{vehBars[2]}</span></div>
+            </div>
+          </div>
+        </Card>
+
+        <Card title="Doanh thu 7 ngày">
+          <div className="flex items-end justify-between">
+            <SimpleBar data={revenueByDay} color="#16a34a" />
+            <div className="space-y-1 text-sm text-right">
+              {days.map((d,i)=> <div key={i} className="text-gray-600">{d}: <span className="font-medium">{new Intl.NumberFormat('vi-VN').format(revenueByDay[i])}</span></div>)}
             </div>
           </div>
         </Card>

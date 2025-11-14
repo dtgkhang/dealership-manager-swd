@@ -29,29 +29,47 @@ export default function Vouchers({ api, can }: { api: ReturnType<typeof useApi>,
     <Card>
       {error && <div className="mb-2 rounded-lg bg-red-50 p-2 text-sm text-red-700">{String(error)}</div>}
       <table className="w-full table-auto text-sm">
-        <thead><tr className="text-left text-gray-600"><th className="p-2">Mã</th><th className="p-2">Loại</th><th className="p-2">Tiêu đề</th><th className="p-2">Điều kiện</th></tr></thead>
+        <thead>
+          <tr className="text-left text-gray-600">
+            <th className="p-2">Mã</th>
+            <th className="p-2">Loại</th>
+            <th className="p-2">Tiêu đề</th>
+            <th className="p-2">Điều kiện</th>
+            <th className="p-2">Tạo lúc</th>
+            <th className="p-2">Hiệu lực</th>
+            <th className="p-2">Cộng dồn</th>
+            <th className="p-2">Trạng thái</th>
+            <th className="p-2">Thao tác</th>
+          </tr>
+        </thead>
         <tbody>
-          {loading ? <tr><td className="p-2" colSpan={4}>Đang tải…</td></tr> : ((data as any[]) ?? []).filter((v: any) => {
+          {loading ? <tr><td className="p-2" colSpan={9}>Đang tải…</td></tr> : ((data as any[]) ?? []).filter((v: any) => {
             const s = (q||"").toLowerCase();
             if (!s) return true;
             return (v.code?.toLowerCase()?.includes(s) || v.title?.toLowerCase()?.includes(s));
-          }).map((v: any) => (
-            <tr key={v.id} className="border-t">
-              <td className="p-2 font-mono">{v.code}</td>
-              <td className="p-2">{v.type}</td>
-              <td className="p-2">{v.title} {!v.active && <span className="ml-2 text-xs text-red-600">(Đã hủy)</span>}</td>
-              <td className="p-2 text-gray-600">
-                Tối thiểu {currency(v.min_price)} · Tối đa {currency(v.max_discount)}
-                <div className="mt-1">
+          }).map((v: any) => {
+            const created = String(v.created_at||'').split('T').join(' ').slice(0,16);
+            const range = `${(v.usable_from||'').split('T')[0]||'—'} → ${(v.usable_to||'').split('T')[0]||'—'}`;
+            return (
+              <tr key={v.id} className="border-t">
+                <td className="p-2 font-mono">{v.code}</td>
+                <td className="p-2">{v.type}</td>
+                <td className="p-2">{v.title}</td>
+                <td className="p-2 text-gray-600">Tối thiểu {currency(v.min_price)} · Tối đa {currency(v.max_discount)}</td>
+                <td className="p-2">{created}</td>
+                <td className="p-2">{range}</td>
+                <td className="p-2">{v.stackable ? 'Có' : 'Không'}</td>
+                <td className="p-2">{v.active ? 'Hoạt động' : 'Đã hủy'}</td>
+                <td className="p-2 space-x-2">
                   {v.active ? (
-                    <Button variant="danger" onClick={async()=>{ try { await (api as any).updateVoucherActive(v.id, false); reload(); } catch(e:any){ alert(e?.message || 'Hủy voucher thất bại'); } }}>Hủy</Button>
+                    <Button variant="danger" onClick={async()=>{ if(!confirm(`Hủy voucher ${v.code}?`)) return; try { await (api as any).updateVoucherActive(v.id, false); reload(); } catch(e:any){ alert(e?.message || 'Hủy voucher thất bại'); } }}>Hủy</Button>
                   ) : (
-                    <Button variant="primary" onClick={async()=>{ try { await (api as any).updateVoucherActive(v.id, true); reload(); } catch(e:any){ alert(e?.message || 'Khôi phục voucher thất bại'); } }}>Khôi phục</Button>
+                    <Button variant="primary" onClick={async()=>{ if(!confirm(`Khôi phục voucher ${v.code}?`)) return; try { await (api as any).updateVoucherActive(v.id, true); reload(); } catch(e:any){ alert(e?.message || 'Khôi phục voucher thất bại'); } }}>Khôi phục</Button>
                   )}
-                </div>
-              </td>
-            </tr>
-          ))}
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </Card>

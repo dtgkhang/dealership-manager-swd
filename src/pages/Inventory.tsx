@@ -13,7 +13,7 @@ export default function Inventory({ api, can }: { api: ReturnType<typeof useApi>
   const [q, setQ] = React.useState("");
   const [status, setStatus] = React.useState<string|"">("");
   const [vinInput, setVinInput] = React.useState(""); const [selected, setSelected] = React.useState<VehicleUnit | any | null>(null);
-  const [openVIN, setOpenVIN] = React.useState(false); const [openDeliver, setOpenDeliver] = React.useState(false);
+  const [openVIN, setOpenVIN] = React.useState(false);
   const [vinErr, setVinErr] = React.useState<string | null>(null);
 
   return <div className="space-y-4">
@@ -50,7 +50,7 @@ export default function Inventory({ api, can }: { api: ReturnType<typeof useApi>
                 <td className="p-2 space-x-2">
                   <Button variant="info" onClick={()=>api.markVehicleArrived(v.id).then(reload)} disabled={v.status!=="ON_ORDER" || !can("VEHICLE.MARK_ARRIVED")}>Đánh dấu về đại lý</Button>
                   <Button onClick={()=>{ setSelected(v); setVinInput(v.vin ?? ""); setOpenVIN(true); }} disabled={!can("VEHICLE.SET_VIN")}>Gán VIN</Button>
-                  <Button variant="primary" onClick={()=>{ setSelected(v); setOpenDeliver(true); }} disabled={v.status!=="AT_DEALER" || !can("DELIVERY.CREATE")}>Lập phiếu giao</Button>
+                  {/* Bỏ lập phiếu giao tại kho xe */}
                 </td>
               </tr>
             ))}
@@ -75,7 +75,7 @@ export default function Inventory({ api, can }: { api: ReturnType<typeof useApi>
                 <td className="p-2 space-x-2">
                   <Button variant="info" onClick={()=>api.markVehicleArrived(v.id).then(reload)} disabled={v.status!=="ON_ORDER" || !can("VEHICLE.MARK_ARRIVED")}>Đánh dấu về đại lý</Button>
                   <Button onClick={()=>{ setSelected(v); setVinInput(v.vin ?? ""); setOpenVIN(true); }} disabled={!can("VEHICLE.SET_VIN")}>Gán VIN</Button>
-                  <Button variant="primary" onClick={()=>{ setSelected(v); setOpenDeliver(true); }} disabled={v.status!=="AT_DEALER" || !can("DELIVERY.CREATE")}>Lập phiếu giao</Button>
+                  {/* Bỏ lập phiếu giao tại kho xe */}
                 </td>
               </tr>
             ))}
@@ -103,88 +103,9 @@ export default function Inventory({ api, can }: { api: ReturnType<typeof useApi>
         </div>
       </Modal>
 
-      <CreateDeliveryModal open={openDeliver} onClose={()=>setOpenDeliver(false)} vehicle={selected} api={api} onDone={reload} />
+      {/* Bỏ modal lập phiếu giao tại kho xe */}
     </>}
   </div>;
-}
-
-function CreateDeliveryModal({ open, onClose, vehicle, api, onDone }: { open: boolean; onClose: ()=>void; vehicle: any | null; api: ReturnType<typeof useApi>; onDone: ()=>void; }) {
-  const backend = BACKEND_MODE;
-  const [form, setForm] = React.useState<any>(null);
-  const { data: orders } = useReloadable<any[]>((api as any).listCustomerOrders ?? api.listOrders, []);
-  const { data: vouchers } = useReloadable<any[]>(api.listVouchers, []);
-  const [err, setErr] = React.useState<string | null>(null);
-  React.useEffect(()=>{
-    if (!form?.orderId) return;
-    const ordersArr = (orders as any[]) ?? [];
-    const o: any = ordersArr.find((x:any)=> x.id === form.orderId);
-    if (!o) return;
-    setForm((prev:any) => ({
-      ...prev,
-      customerName: (prev.customerName && prev.customerName.length>0) ? prev.customerName : (o.customerInfo ?? prev.customerName),
-      priceBefore: (prev.priceBefore !== '' && prev.priceBefore != null) ? prev.priceBefore : (o.price ?? prev.priceBefore),
-    }));
-  }, [form?.orderId, orders]);
-  React.useEffect(()=>{
-    if (!open || !vehicle) return;
-    setForm(backend
-      ? { orderId: '', vehicleUnitId: vehicle.id, customerName: '', priceBefore: '', voucherCode: '' }
-      : { customer_name: '', price_before: 0, voucher_id: '', deposit: 10000000 }
-    );
-  }, [open, vehicle, backend]);
-  if(!open || !vehicle || !form) return null;
-
-  return <Modal open={open} onClose={onClose} title={`Lập phiếu giao xe #${vehicle.id}`}>
-    <div className="space-y-3">
-      <div className="rounded-xl border p-3 text-sm text-gray-600">VIN: <span className="font-mono">{vehicle.vin ?? "(chưa có)"}</span> · Trạng thái: {vehicle.status}</div>
-      {backend ? (
-        <div className="grid grid-cols-2 gap-3">
-          {err && <div className="col-span-2 rounded-lg bg-red-50 p-2 text-sm text-red-700">{err}</div>}
-          <div>
-            <label className="text-xs">Đơn hàng</label>
-            <select className="w-full rounded-xl border p-2" value={form.orderId} onChange={e=>setForm({...form, orderId: e.target.value? Number(e.target.value): ''})}>
-              <option value="">Chọn đơn</option>
-              {((orders as any[]) ?? []).filter((o:any)=> { const s=String(o.status||'').toUpperCase(); return s!=='COMPLETED' && s!=='DELIVERED' && s!=='CANCELLED'; }).map((o:any)=> <option key={o.id} value={o.id}>#{o.id} – {o.username ?? o.userId ?? ''} · {o.vehicleModel ?? ''}</option>)}
-            </select>
-          </div>
-          <input className="w-full rounded-xl border p-2 bg-gray-100" placeholder="Tên khách hàng" value={form.customerName} disabled readOnly />
-          <input className="w-full rounded-xl border p-2 bg-gray-100" type="number" placeholder="Giá trước" value={form.priceBefore ?? ''} disabled readOnly />
-          <div>
-            <label className="text-xs">Mã voucher (nếu có)</label>
-            <select className="w-full rounded-xl border p-2" value={form.voucherCode ?? ''} onChange={e=>setForm({...form, voucherCode:e.target.value})}>
-              <option value="">Không áp dụng</option>
-              {((vouchers as any[]) ?? []).map((v:any)=> <option key={v.id} value={v.code}>{v.code} – {v.title}</option>)}
-            </select>
-          </div>
-        </div>
-      ) : (
-        <div className="grid grid-cols-2 gap-3">
-          <input className="w-full rounded-xl border p-2" placeholder="Tên khách hàng" value={form.customer_name} onChange={e=>setForm({...form, customer_name:e.target.value})} />
-          <input className="w-full rounded-xl border p-2" type="number" value={form.price_before ?? 0} onChange={e=>setForm({...form, price_before:Number(e.target.value)})} />
-        </div>
-      )}
-
-      <div className="flex justify-end gap-2">
-        <Button onClick={onClose}>Hủy</Button>
-        <Button className="bg-black text-white" onClick={async()=>{
-          try {
-            setErr(null);
-            if (backend) {
-              const payload: any = { ...form };
-              if (payload.priceBefore === '') delete payload.priceBefore;
-              await api.createDelivery(payload);
-            } else {
-              await api.createDelivery({ vehicleUnitId: vehicle.id, customerName: form.customer_name, priceBefore: form.price_before });
-            }
-            onClose(); onDone();
-          } catch (e:any) {
-            console.error('Create delivery failed', e);
-            setErr(e?.message || 'Create delivery failed');
-          }
-        }} disabled={backend ? (!form.orderId || !form.customerName) : (!form.customer_name)}>Tạo phiếu</Button>
-      </div>
-    </div>
-  </Modal>;
 }
 
 function renderStatus(status?: string){

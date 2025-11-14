@@ -40,9 +40,11 @@ export default function CustomerOrders({ api, can }: { api: ReturnType<typeof us
         <thead>
           <tr className="text-left text-gray-600">
             <th className="p-2">ID</th>
+            <th className="p-2">Ngày tạo</th>
             <th className="p-2">Khách hàng</th>
             <th className="p-2">Nhân viên</th>
             <th className="p-2">Mẫu xe</th>
+            <th className="p-2">Dự kiến giao</th>
             <th className="p-2">Giá</th>
             <th className="p-2">Giảm</th>
             <th className="p-2">Sau KM</th>
@@ -50,16 +52,18 @@ export default function CustomerOrders({ api, can }: { api: ReturnType<typeof us
           </tr>
         </thead>
         <tbody>
-          {loading ? <tr><td className="p-2" colSpan={6}>Đang tải…</td></tr> : ((data as any[]) ?? []).filter((o:any)=>{
+          {loading ? <tr><td className="p-2" colSpan={9}>Đang tải…</td></tr> : ((data as any[]) ?? []).filter((o:any)=>{
             const s=(q||"").toLowerCase(); if(!s) return true;
             const model = modelById.get(o.vehicleId)?.model ?? o.vehicleModel ?? '';
             return (String(o.customerInfo ?? '').toLowerCase().includes(s) || String(model).toLowerCase().includes(s));
           }).map((o: any) => (
             <tr key={o.id} className="border-t">
               <td className="p-2">#{o.id}</td>
+              <td className="p-2">{String(o.createdAt ?? '').split('T').join(' ').slice(0,16)}</td>
               <td className="p-2">{o.customerInfo ?? ''}</td>
               <td className="p-2">{o.username ?? ''}</td>
               <td className="p-2">{o.vehicleModel ?? (modelById.get(o.vehicleId)?.model ?? o.vehicleId)}</td>
+              <td className="p-2">{String(o.deliveryDate ?? '').split('T')[0]}</td>
               <td className="p-2">{currency(Number(o.price || 0))}</td>
               <td className="p-2">{currency(Number(o.discountApplied || 0))}</td>
               <td className="p-2 font-semibold">{currency(Number(o.priceAfter || o.price || 0))}</td>

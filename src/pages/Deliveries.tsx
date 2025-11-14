@@ -95,10 +95,21 @@ export default function Deliveries({ api, can }: { api: ReturnType<typeof useApi
           </div>
           <div>
             <label className="text-xs">Xe tại đại lý (VIN)</label>
-            <select className="w-full rounded-xl border p-2" value={form.vehicleUnitId ?? ""} onChange={e=>setForm({...form, vehicleUnitId: e.target.value? Number(e.target.value): "" as any })}>
-              <option value="">Chọn xe (AT_DEALER)</option>
-              {((units as any[]) ?? []).map((u:any)=> <option key={u.id} value={u.id}>#{u.id} · {u.vin ?? '(chưa có VIN)'} · {u.model?.model ?? ''}</option>)}
-            </select>
+            {(() => {
+              const ordersArr = (orders as any[]) ?? [];
+              const sel = ordersArr.find((o:any) => o.id === form.orderId);
+              const targetModelId = sel?.vehicleId;
+              const unitsArr = (units as any[]) ?? [];
+              const filtered = targetModelId ? unitsArr.filter((u:any) => (u.model?.id ?? u.car_model_id) === targetModelId) : [];
+              return (
+                <select className="w-full rounded-xl border p-2" value={form.vehicleUnitId ?? ""}
+                        onChange={e=>setForm({...form, vehicleUnitId: e.target.value? Number(e.target.value): "" as any })}
+                        disabled={!form.orderId}>
+                  <option value="">{form.orderId ? 'Chọn xe (đúng model đơn)' : 'Chọn đơn trước'}</option>
+                  {filtered.map((u:any)=> <option key={u.id} value={u.id}>#{u.id} · {u.vin ?? '(chưa có VIN)'} · {u.model?.model ?? ''}</option>)}
+                </select>
+              );
+            })()}
           </div>
           <input className="w-full rounded-xl border p-2 bg-gray-100" placeholder="Tên khách hàng" value={form.customerName ?? ''} disabled readOnly />
           <input className="w-full rounded-xl border p-2 bg-gray-100" type="number" placeholder="Giá trước" value={form.priceBefore ?? ''} disabled readOnly />

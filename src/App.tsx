@@ -5,6 +5,7 @@ import Dashboard from "./pages/Dashboard";
 import Orders from "./pages/Orders";
 import CustomerOrders from "./pages/CustomerOrders";
 import Accounts from "./pages/Accounts";
+import Guide from "./pages/Guide";
 import Inventory from "./pages/Inventory";
 import Vouchers from "./pages/Vouchers";
 import Deliveries from "./pages/Deliveries";
@@ -47,6 +48,7 @@ export default function App(){
     { key: "vouchers", label: "Mã ưu đãi", roles: ["MANAGER"] },
     { key: "accounts", label: "Tài khoản", roles: ["MANAGER"] },
     { key: "deliveries", label: "Phiếu giao", roles: ["MANAGER","STAFF"] },
+    { key: "guide", label: "Hướng dẫn", roles: ["MANAGER","STAFF"] },
   ] as const : [
     { key: "dashboard", label: "Tổng quan", roles: ["MANAGER","STAFF"] },
     { key: "orders", label: "Đặt PO", roles: ["MANAGER"] },
@@ -63,47 +65,68 @@ export default function App(){
     return <Auth onSuccess={()=> setLogged('1')} />;
   }
 
-  return <div className="min-h-screen bg-gray-50">
-    <div className="mx-auto max-w-6xl px-4 py-4">
-      <header className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div className="text-xl font-bold">Quản lý đại lý xe <span className="text-xs text-gray-500">({backendMode? 'Backend mode' : 'Mock mode'})</span></div>
-        <div className="flex flex-col items-start gap-2 md:flex-row md:items-center">
-          {!backendMode && (
+  return (
+    <div className="min-h-screen bg-gray-50 flex">
+      <aside className="hidden md:flex w-64 flex-col border-r bg-white p-4">
+        <div className="mb-4">
+          <div className="text-lg font-bold">Dealer Manager</div>
+          <div className="text-xs text-gray-500 mt-0.5">{backendMode? 'Backend mode' : 'Mock mode'}</div>
+        </div>
+        <div className="mb-4">
+          {!backendMode ? (
             <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-600">Vai trò (mock):</span>
-              <select className="rounded-xl border p-2" value={role} onChange={e=>setRole(e.target.value as Role)}>
+              <span className="text-xs text-gray-600">Vai trò (mock)</span>
+              <select className="rounded-xl border p-2 text-xs" value={role} onChange={e=>setRole(e.target.value as Role)}>
                 <option value="MANAGER">Quản lý</option>
                 <option value="STAFF">Nhân viên</option>
               </select>
             </div>
-          )}
-          {backendMode && (
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-green-700">{role === 'MANAGER' ? 'Manager' : 'Staff'}</span>
-              <Button onClick={()=>{ backendLogout(); setLogged(null); }}>Đăng xuất</Button>
+          ) : (
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-green-700">{role === 'MANAGER' ? 'Manager' : 'Staff'}</span>
             </div>
           )}
         </div>
-        <nav className="flex flex-wrap gap-2">
+        <nav className="flex flex-col gap-1">
           {visible.map(t => (
-            <Button
-              key={t.key}
-              onClick={()=>setTab(t.key)}
-              variant={tab===t.key ? 'primary' : 'ghost'}
-            >{t.label}</Button>
+            <Button key={t.key} onClick={()=>setTab(t.key)} variant={tab===t.key ? 'primary' : 'ghost'}>
+              {t.label}
+            </Button>
           ))}
         </nav>
-      </header>
+        {backendMode && (
+          <div className="mt-auto pt-4">
+            <Button onClick={()=>{ backendLogout(); setLogged(null); }} variant="secondary" className="w-full">Đăng xuất</Button>
+          </div>
+        )}
+      </aside>
 
-      <main key={logged ? 'auth' : 'guest'} className="space-y-4">
-        {tab==="dashboard" && <Dashboard api={api} role={role} />}
-        {tab==="orders" && <Orders api={api} can={can} />}
-        {tab==="inventory" && <Inventory api={api} can={can} />}
-        {backendMode && tab==="customer-orders" && <CustomerOrders api={api} can={can} />}
-        {tab==="vouchers" && <Vouchers api={api} can={can} />}
-        {backendMode && tab==="accounts" && <Accounts api={api} />}
-        {tab==="deliveries" && <Deliveries api={api} can={can} />}
-      </main>
+      <div className="flex-1 p-4 md:p-6">
+        <header className="mb-4 md:hidden">
+          <div className="flex items-center justify-between">
+            <div className="text-lg font-bold">Dealer Manager</div>
+            {backendMode && <Button onClick={()=>{ backendLogout(); setLogged(null); }}>Đăng xuất</Button>}
+          </div>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {visible.map(t => (
+              <Button key={t.key} onClick={()=>setTab(t.key)} variant={tab===t.key ? 'primary' : 'ghost'}>
+                {t.label}
+              </Button>
+            ))}
+          </div>
+        </header>
+
+        <main key={logged ? 'auth' : 'guest'} className="space-y-4">
+          {tab==="dashboard" && <Dashboard api={api} role={role} />}
+          {tab==="orders" && <Orders api={api} can={can} />}
+          {tab==="inventory" && <Inventory api={api} can={can} />}
+          {backendMode && tab==="customer-orders" && <CustomerOrders api={api} can={can} />}
+          {tab==="vouchers" && <Vouchers api={api} can={can} />}
+          {backendMode && tab==="accounts" && <Accounts api={api} />}
+          {tab==="deliveries" && <Deliveries api={api} can={can} />}
+          {tab==="guide" && <Guide />}
+        </main>
+      </div>
     </div>
-  </div>;
+  );
 }
