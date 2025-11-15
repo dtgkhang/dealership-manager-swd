@@ -46,15 +46,27 @@ export default function Auth({ onSuccess }: { onSuccess: () => void }) {
           {error && <div className="rounded-lg bg-red-50 p-2 text-sm text-red-700">{error}</div>}
           {mode==='register' && (
             <>
-              <input className="w-full rounded-xl border p-2" placeholder="Họ tên" value={name} onChange={e=>setName(e.target.value)} />
-              <select className="w-full rounded-xl border p-2" value={roleId} onChange={e=>setRoleId(Number(e.target.value))}>
-                <option value={1}>Manager</option>
-                <option value={2}>Staff</option>
-              </select>
+              <div className="space-y-1">
+                <label className="text-xs text-gray-600">Họ tên</label>
+                <input className="w-full rounded-xl border p-2" placeholder="Họ tên" value={name} onChange={e=>setName(e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs text-gray-600">Vai trò</label>
+                <select className="w-full rounded-xl border p-2" value={roleId} onChange={e=>setRoleId(Number(e.target.value))}>
+                  <option value={1}>Manager</option>
+                  <option value={2}>Staff</option>
+                </select>
+              </div>
             </>
           )}
-          <input className="w-full rounded-xl border p-2" placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} />
-          <input className="w-full rounded-xl border p-2" type="password" placeholder="Mật khẩu" value={password} onChange={e=>setPassword(e.target.value)} />
+          <div className="space-y-1">
+            <label className="text-xs text-gray-600">Email</label>
+            <input className="w-full rounded-xl border p-2" placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs text-gray-600">Mật khẩu</label>
+            <input className="w-full rounded-xl border p-2" type="password" placeholder="Mật khẩu" value={password} onChange={e=>setPassword(e.target.value)} />
+          </div>
           <Button className="w-full" variant="primary" onClick={submit} disabled={loading}>
             {loading ? 'Đang xử lý…' : (mode==='login' ? 'Đăng nhập' : 'Tạo tài khoản')}
           </Button>

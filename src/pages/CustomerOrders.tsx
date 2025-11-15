@@ -200,11 +200,25 @@ export default function CustomerOrders({
             </select>
           </div>
           <div>
-            <input className={`w-full rounded-xl border p-2 ${err && (!form.customerInfo || !form.customerInfo.trim()) ? 'border-red-500' : ''}`} placeholder="Tên khách / ghi chú" value={form.customerInfo} onChange={e=>setForm({ ...form, customerInfo: e.target.value })} />
+            <label className="text-xs">Khách hàng / ghi chú</label>
+            <input
+              className={`w-full rounded-xl border p-2 ${err && (!form.customerInfo || !form.customerInfo.trim()) ? 'border-red-500' : ''}`}
+              placeholder="Tên khách / ghi chú"
+              value={form.customerInfo}
+              onChange={e=>setForm({ ...form, customerInfo: e.target.value })}
+            />
             {err && (!form.customerInfo || !form.customerInfo.trim()) && <div className="mt-1 text-xs text-red-600">Vui lòng nhập thông tin khách</div>}
           </div>
           <div>
-            <input className={`w-full rounded-xl border p-2 ${err && (typeof form.price==='number' && form.price <= 0) ? 'border-red-500' : ''}`} type="number" placeholder="Giá bán (VNĐ)" min={0} value={form.price ?? ''} onChange={e=>{ const v=e.target.value; setForm({ ...form, price: v===''? '' : Number(v) }); }} />
+            <label className="text-xs">Giá bán (VNĐ)</label>
+            <input
+              className={`w-full rounded-xl border p-2 ${err && (typeof form.price==='number' && form.price <= 0) ? 'border-red-500' : ''}`}
+              type="number"
+              placeholder="Giá bán (VNĐ)"
+              min={0}
+              value={form.price ?? ''}
+              onChange={e=>{ const v=e.target.value; setForm({ ...form, price: v===''? '' : Number(v) }); }}
+            />
             {err && (typeof form.price==='number' && form.price <= 0) && <div className="mt-1 text-xs text-red-600">Giá phải &gt; 0</div>}
           </div>
           <div>

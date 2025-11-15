@@ -42,7 +42,6 @@ export default function App(){
     if (r) setRole(r as Role);
   }, [logged]);
 
-  // Tabs chính theo luồng nghiệp vụ: Tổng quan → Đặt PO → Kho xe → Đơn khách → Phiếu giao → Voucher → Tài khoản
   const tabsAll = backendMode ? [
     { key: "dashboard", label: "Tổng quan", roles: ["MANAGER","STAFF"] },
     { key: "orders", label: "Đặt PO", roles: ["MANAGER"] },

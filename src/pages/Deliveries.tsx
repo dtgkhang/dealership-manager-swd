@@ -266,8 +266,27 @@ export default function Deliveries({
               );
             })()}
           </div>
-          <input className="w-full rounded-xl border p-2 bg-gray-100" placeholder="Tên khách hàng" value={form.customerName ?? ''} disabled readOnly />
-          <input className="w-full rounded-xl border p-2 bg-gray-100" type="number" placeholder="Giá trước" value={form.priceBefore ?? ''} disabled readOnly />
+          <div>
+            <label className="text-xs">Khách hàng</label>
+            <input
+              className="w-full rounded-xl border p-2 bg-gray-100"
+              placeholder="Tên khách hàng"
+              value={form.customerName ?? ''}
+              disabled
+              readOnly
+            />
+          </div>
+          <div>
+            <label className="text-xs">Giá trước</label>
+            <input
+              className="w-full rounded-xl border p-2 bg-gray-100"
+              type="number"
+              placeholder="Giá trước"
+              value={form.priceBefore ?? ''}
+              disabled
+              readOnly
+            />
+          </div>
           {/* Voucher đã chuyển về bước Đơn khách */}
         </div>
         <div className="flex justify-end gap-2">

@@ -145,17 +145,34 @@ export default function Orders({ api, can }: { api: ReturnType<typeof useApi>, c
         {formErr && <div className="rounded-lg bg-red-50 p-2 text-sm text-red-700">{formErr}</div>}
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <input className={`w-full rounded-xl border p-2 ${formErr && (!form.order_no || !form.order_no.trim()) ? 'border-red-500' : ''}`} placeholder="PO-2025-001" value={form.order_no} onChange={e=>setForm({...form, order_no: e.target.value})} />
+            <label className="text-xs text-gray-600">Số PO</label>
+            <input
+              className={`w-full rounded-xl border p-2 ${formErr && (!form.order_no || !form.order_no.trim()) ? 'border-red-500' : ''}`}
+              placeholder="PO-2025-001"
+              value={form.order_no}
+              onChange={e=>setForm({...form, order_no: e.target.value})}
+            />
             {formErr && (!form.order_no || !form.order_no.trim()) && <div className="mt-1 text-xs text-red-600">Vui lòng nhập số PO</div>}
           </div>
-          <input
-            className="w-full rounded-xl border p-2"
-            type="date"
-            min={today}
-            value={form.eta_at_dealer?.split('T')[0] ?? ''}
-            onChange={e=>setForm({...form, eta_at_dealer: e.target.value ? new Date(e.target.value).toISOString() : ''})}
-          />
-          <input className="w-full rounded-xl border p-2 col-span-2" placeholder="Ghi chú" value={form.note ?? ''} onChange={e=>setForm({...form, note: e.target.value})} />
+          <div>
+            <label className="text-xs text-gray-600">ETA tại đại lý</label>
+            <input
+              className="w-full rounded-xl border p-2"
+              type="date"
+              min={today}
+              value={form.eta_at_dealer?.split('T')[0] ?? ''}
+              onChange={e=>setForm({...form, eta_at_dealer: e.target.value ? new Date(e.target.value).toISOString() : ''})}
+            />
+          </div>
+          <div className="col-span-2">
+            <label className="text-xs text-gray-600">Ghi chú</label>
+            <input
+              className="w-full rounded-xl border p-2"
+              placeholder="Ghi chú"
+              value={form.note ?? ''}
+              onChange={e=>setForm({...form, note: e.target.value})}
+            />
+          </div>
         </div>
         <div className="grid grid-cols-3 gap-3">
           <div>

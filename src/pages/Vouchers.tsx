@@ -159,24 +159,45 @@ export default function Vouchers({ api, can }: { api: ReturnType<typeof useApi>,
       <div className="space-y-3">
         {err && <div className="rounded-lg bg-red-50 p-2 text-sm text-red-700">{err}</div>}
         <div className="grid grid-cols-2 gap-3">
-          <div>
-            <input className={`w-full rounded-xl border p-2 ${err && !form.code.trim() ? 'border-red-500' : ''}`} placeholder="Mã (ví dụ: FLAT10M)" value={form.code} onChange={e=>setForm({...form, code:e.target.value})} />
+          <div className="space-y-1">
+            <label className="text-xs text-gray-600">Mã voucher</label>
+            <input
+              className={`w-full rounded-xl border p-2 ${err && !form.code.trim() ? 'border-red-500' : ''}`}
+              placeholder="Mã (ví dụ: FLAT10M)"
+              value={form.code}
+              onChange={e=>setForm({...form, code:e.target.value})}
+            />
             {err && !form.code.trim() && <div className="mt-1 text-xs text-red-600">Vui lòng nhập mã</div>}
           </div>
-          <select className="w-full rounded-xl border p-2" value={form.type} onChange={e=>setForm({...form, type:e.target.value as VoucherType})}>
-            <option value="FLAT">Giảm số tiền cố định</option>
-            <option value="PERCENT">Giảm theo phần trăm</option>
-          </select>
-          <input className="w-full rounded-xl border p-2 col-span-2" placeholder="Tiêu đề" value={form.title} onChange={e=>setForm({...form, title:e.target.value})} />
+          <div className="space-y-1">
+            <label className="text-xs text-gray-600">Loại voucher</label>
+            <select
+              className="w-full rounded-xl border p-2"
+              value={form.type}
+              onChange={e=>setForm({...form, type:e.target.value as VoucherType})}
+            >
+              <option value="FLAT">Giảm số tiền cố định</option>
+              <option value="PERCENT">Giảm theo phần trăm</option>
+            </select>
+          </div>
+          <div className="col-span-2 space-y-1">
+            <label className="text-xs text-gray-600">Tiêu đề hiển thị</label>
+            <input
+              className="w-full rounded-xl border p-2"
+              placeholder="Ví dụ: Giảm 5 triệu cho đơn trên 400 triệu"
+              value={form.title}
+              onChange={e=>setForm({...form, title:e.target.value})}
+            />
+          </div>
         </div>
         <div className="grid grid-cols-3 gap-3">
           <div>
-            <label className="text-xs">Tối thiểu áp dụng</label>
+            <label className="text-xs">Tối thiểu áp dụng (VNĐ)</label>
             <input className={`w-full rounded-xl border p-2 ${err && (form.min_price!=null && form.min_price < 0) ? 'border-red-500' : ''}`} type="number" placeholder="0" min={0} value={form.min_price ?? ""} onChange={e=>setForm({...form, min_price: e.target.value? Number(e.target.value): undefined})} />
             {err && (form.min_price!=null && form.min_price < 0) && <div className="mt-1 text-xs text-red-600">Không hợp lệ</div>}
           </div>
           <div>
-            <label className="text-xs">Giảm tối đa</label>
+            <label className="text-xs">Giảm tối đa (VNĐ)</label>
             <input className={`w-full rounded-xl border p-2 ${err && (form.max_discount!=null && form.max_discount < 0) ? 'border-red-500' : ''}`} type="number" placeholder="0" min={0} value={form.max_discount ?? ""} onChange={e=>setForm({...form, max_discount: e.target.value? Number(e.target.value): undefined})} />
             {err && (form.max_discount!=null && form.max_discount < 0) && <div className="mt-1 text-xs text-red-600">Không hợp lệ</div>}
           </div>
@@ -208,6 +229,44 @@ export default function Vouchers({ api, can }: { api: ReturnType<typeof useApi>,
             <input type="checkbox" checked={form.stackable} onChange={e=>setForm({...form, stackable: e.target.checked})} /> Cho phép cộng dồn
           </label>
         </div>
+        {(() => {
+          const min = form.min_price ?? 0;
+          const maxDisc = form.max_discount;
+          let desc = '';
+          if (form.type === 'FLAT' && form.amount) {
+            desc = `Giảm ${currency(form.amount)} cho đơn từ ${currency(min)}${maxDisc ? `, tối đa ${currency(maxDisc)}` : ''}`;
+          } else if (form.type === 'PERCENT' && form.percent) {
+            desc = `Giảm ${form.percent}% cho đơn từ ${currency(min)}${maxDisc ? `, tối đa ${currency(maxDisc)}` : ''}`;
+          } else {
+            desc = 'Cấu hình mức giảm để xem mô tả.';
+          }
+          const samplePrice = 500_000_000;
+          let sampleDiscount = 0;
+          if (samplePrice >= (form.min_price ?? 0)) {
+            if (form.type === 'FLAT' && form.amount) {
+              sampleDiscount = form.amount;
+            }
+            if (form.type === 'PERCENT' && form.percent) {
+              sampleDiscount = Math.floor(samplePrice * form.percent / 100);
+            }
+            if (maxDisc != null) sampleDiscount = Math.min(sampleDiscount, maxDisc);
+          }
+          const sampleAfter = Math.max(0, samplePrice - sampleDiscount);
+          return (
+            <div className="rounded-xl border p-3 bg-gray-50 text-xs md:text-sm text-gray-700">
+              <div className="font-semibold mb-1">Mô tả nhanh</div>
+              <div>{desc}</div>
+              <div className="mt-2">
+                <span className="text-gray-500">Ví dụ đơn </span>
+                <span className="font-medium">{currency(samplePrice)}</span>
+                <span className="text-gray-500"> → giảm </span>
+                <span className="font-medium">{currency(sampleDiscount)}</span>
+                <span className="text-gray-500">, khách trả </span>
+                <span className="font-semibold">{currency(sampleAfter)}</span>
+              </div>
+            </div>
+          );
+        })()}
         <div className="flex justify-end gap-2">
           <Button onClick={()=>setOpen(false)}>Hủy</Button>
           <Button variant="primary" onClick={async()=>{
