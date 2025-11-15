@@ -1,6 +1,6 @@
 
 import React from "react";
-import { Button } from "./components/ui";
+import { Button, Badge } from "./components/ui";
 import Dashboard from "./pages/Dashboard";
 import Orders from "./pages/Orders";
 import CustomerOrders from "./pages/CustomerOrders";
@@ -12,6 +12,7 @@ import Deliveries from "./pages/Deliveries";
 import Auth from "./pages/Auth";
 import type { Role } from "./lib/types";
 import { ROLE_PERMS, useApi, login as backendLogin, register as backendRegister, logout as backendLogout, BACKEND_MODE, getRoleFromToken, getToken } from "./lib/api";
+import { useReloadable } from "./hooks/useReloadable";
 
 export default function App(){
   const [role, setRole] = React.useState<Role>(() => {
@@ -41,16 +42,15 @@ export default function App(){
     if (r) setRole(r as Role);
   }, [logged]);
 
-  // Sắp xếp theo luồng nghiệp vụ: Hướng dẫn → Đặt PO → Kho xe → Đơn khách → Phiếu giao → Voucher → Tài khoản → Tổng quan
+  // Tabs chính theo luồng nghiệp vụ: Tổng quan → Đặt PO → Kho xe → Đơn khách → Phiếu giao → Voucher → Tài khoản
   const tabsAll = backendMode ? [
-    { key: "guide", label: "Hướng dẫn", roles: ["MANAGER","STAFF"] },
+    { key: "dashboard", label: "Tổng quan", roles: ["MANAGER","STAFF"] },
     { key: "orders", label: "Đặt PO", roles: ["MANAGER"] },
     { key: "inventory", label: "Kho xe", roles: ["MANAGER","STAFF"] },
     { key: "customer-orders", label: "Đơn khách", roles: ["MANAGER","STAFF"] },
     { key: "deliveries", label: "Phiếu giao", roles: ["MANAGER","STAFF"] },
     { key: "vouchers", label: "Mã ưu đãi", roles: ["MANAGER"] },
     { key: "accounts", label: "Tài khoản", roles: ["MANAGER"] },
-    { key: "dashboard", label: "Tổng quan", roles: ["MANAGER","STAFF"] },
   ] as const : [
     { key: "dashboard", label: "Tổng quan", roles: ["MANAGER","STAFF"] },
     { key: "orders", label: "Đặt PO", roles: ["MANAGER"] },
@@ -62,19 +62,34 @@ export default function App(){
   const [tab, setTab] = React.useState<string>(visible[0].key);
   React.useEffect(()=>{ if(!visible.find(t=>t.key===tab)) setTab(visible[0]?.key ?? "orders") }, [role, backendMode]);
 
+  // Lightweight badges for sidebar (backend mode only)
+  const isManager = role === 'MANAGER';
+  const { data: deliveries } = backendMode ? useReloadable<any[]>(api.listDeliveries, [api, role]) : { data: null } as any;
+  const { data: customerOrders } = backendMode ? useReloadable<any[]>((api as any).listCustomerOrders, [api, role]) : { data: null } as any;
+  const { data: po } = backendMode ? useReloadable<any[]>(api.listOrders, [api, role]) : { data: null } as any;
+  const pendingDeliveries = ((deliveries as any[]) ?? []).filter(d => {
+    const s = String(d.status || '').toUpperCase();
+    return s !== 'DELIVERED' && s !== 'COMPLETED' && s !== 'CANCELLED';
+  }).length;
+  const staffPendingOrders = ((customerOrders as any[]) ?? []).filter(o => String(o.status || '').toUpperCase() === 'PENDING').length;
+  const poOpen = ((po as any[]) ?? []).filter(o => {
+    const s = String(o.status || '').toUpperCase();
+    return s === 'DRAFT' || s === 'SUBMITTED';
+  }).length;
+
   // Gate: nếu chạy backend và chưa đăng nhập -> hiển thị màn hình Auth
   if (backendMode && !logged) {
     return <Auth onSuccess={()=> setLogged('1')} />;
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      <aside className="hidden md:flex w-64 flex-col border-r bg-white p-4">
-        <div className="mb-4">
+    <div className="bg-gray-50 flex">
+      <aside className="hidden md:flex w-64 flex-col border-r bg-white px-3 py-4 h-screen sticky top-0">
+        <div className="mb-3">
           <div className="text-lg font-bold">Dealer Manager</div>
           <div className="text-xs text-gray-500 mt-0.5">{backendMode? 'Backend mode' : 'Mock mode'}</div>
         </div>
-        <div className="mb-4">
+        <div className="mb-3">
           {!backendMode ? (
             <div className="flex items-center gap-2">
               <span className="text-xs text-gray-600">Vai trò (mock)</span>
@@ -84,12 +99,19 @@ export default function App(){
               </select>
             </div>
           ) : (
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-green-700">{role === 'MANAGER' ? 'Manager' : 'Staff'}</span>
+            <div className="flex flex-col gap-1 text-xs">
+              <span className="text-green-700 font-medium">{role === 'MANAGER' ? 'Manager' : 'Staff'}</span>
+              {backendMode && (
+                <span className="text-gray-500">
+                  {isManager
+                    ? `${poOpen} PO mở · ${pendingDeliveries} phiếu giao chờ`
+                    : `${staffPendingOrders} đơn chờ · ${pendingDeliveries} phiếu giao chờ`}
+                </span>
+              )}
             </div>
           )}
         </div>
-        <nav className="flex flex-col gap-1">
+        <nav className="flex-1 flex flex-col gap-1 overflow-y-auto">
           {visible.map(t => (
             <Button key={t.key} onClick={()=>setTab(t.key)} variant={tab===t.key ? 'primary' : 'ghost'}>
               {t.label}
@@ -97,8 +119,11 @@ export default function App(){
           ))}
         </nav>
         {backendMode && (
-          <div className="mt-auto pt-4">
+          <div className="pt-3 space-y-2 border-t mt-3">
             <Button onClick={()=>{ backendLogout(); setLogged(null); }} variant="secondary" className="w-full">Đăng xuất</Button>
+            <Button onClick={()=>setTab("guide")} variant={tab==="guide" ? "primary" : "ghost"} className="w-full">
+              Hướng dẫn
+            </Button>
           </div>
         )}
       </aside>
@@ -115,6 +140,11 @@ export default function App(){
                 {t.label}
               </Button>
             ))}
+            {backendMode && (
+              <Button onClick={()=>setTab("guide")} variant={tab==="guide" ? "primary" : "ghost"}>
+                Hướng dẫn
+              </Button>
+            )}
           </div>
         </header>
 

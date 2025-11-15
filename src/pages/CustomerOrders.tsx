@@ -34,6 +34,7 @@ export default function CustomerOrders({
   const [advancedOpen, setAdvancedOpen] = React.useState(false);
   const isManager = getRoleFromToken() === 'MANAGER';
   const [detail, setDetail] = React.useState<any | null>(null);
+  const today = new Date().toISOString().slice(0,10);
 
   const modelById = React.useMemo(()=> new Map(((models ?? []) as any[]).map((m: any) => [m.id, m])), [models]);
 
@@ -208,8 +209,13 @@ export default function CustomerOrders({
           </div>
           <div>
             <label className="text-xs">Ngày giao dự kiến</label>
-            <input className="w-full rounded-xl border p-2" type="date" value={(form.deliveryDate || '').split('T')[0]}
-                   onChange={e=> setForm({ ...form, deliveryDate: e.target.value ? new Date(e.target.value).toISOString() : '' })} />
+            <input
+              className="w-full rounded-xl border p-2"
+              type="date"
+              min={today}
+              value={(form.deliveryDate || '').split('T')[0]}
+              onChange={e=> setForm({ ...form, deliveryDate: e.target.value ? new Date(e.target.value).toISOString() : '' })}
+            />
           </div>
           <div className="col-span-2">
             <label className="text-xs">Voucher (tuỳ chọn)</label>

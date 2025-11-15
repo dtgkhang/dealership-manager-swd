@@ -136,7 +136,7 @@ export default function Deliveries({
           <th className="p-2 hidden md:table-cell">ID</th>
           <th className="p-2">Order</th>
           <th className="p-2 hidden md:table-cell">Nhân viên</th>
-          <th className="p-2">Xe</th>
+          <th className="p-2">Mẫu xe</th>
           <th className="p-2">Ngày giao</th>
           <th className="p-2">Trạng thái</th>
           <th className="p-2 hidden md:table-cell">Giá trước</th>
@@ -299,7 +299,7 @@ export default function Deliveries({
             <div><span className="text-gray-500">Trạng thái:</span> <span className="font-medium">{detail.status ?? ''}</span></div>
             <div><span className="text-gray-500">Khách hàng:</span> <span className="font-medium">{detail.customerName ?? ''}</span></div>
             <div><span className="text-gray-500">Nhân viên:</span> <span className="font-medium">{detail.staffName ?? detail.username ?? ''}</span></div>
-            <div><span className="text-gray-500">Xe:</span> <span className="font-medium">{detail.vehicleName ?? detail.vehicleId ?? ''}</span></div>
+            <div><span className="text-gray-500">Mẫu xe:</span> <span className="font-medium">{detail.vehicleName ?? detail.vehicleId ?? ''}</span></div>
             <div><span className="text-gray-500">Ngày giao:</span> <span className="font-medium">{formatDateTime(detail.deliveryDate)}</span></div>
           </div>
           <div className="grid grid-cols-2 gap-2">
@@ -352,9 +352,9 @@ function printDeliveryInvoice(d: any) {
       <tr><td>Nhân viên</td><td>${d.staffName ?? d.username ?? ''}</td></tr>
       <tr><td>Đơn hàng liên quan</td><td>#${d.orderId ?? ''}</td></tr>
     </table>
-    <h2>Thông tin xe</h2>
+    <h2>Thông tin mẫu xe</h2>
     <table>
-      <tr><td>Xe</td><td>${d.vehicleName ?? d.vehicleId ?? ''}</td></tr>
+      <tr><td>Mẫu xe</td><td>${d.vehicleName ?? d.vehicleId ?? ''}</td></tr>
       <tr><td>Trạng thái</td><td>${d.status ?? ''}</td></tr>
     </table>
     <h2>Thanh toán</h2>

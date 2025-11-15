@@ -40,9 +40,35 @@ async function http(path: string, opts: RequestInit = {}) {
   if (token && !path.startsWith('/api/auth/')) headers['Authorization'] = `Bearer ${token}`;
   const res = await fetch(`${API_BASE}${path}`, { ...opts, headers });
   if (!res.ok) {
-    const text = await res.text().catch(()=>"");
-    console.error('API error', { path, status: res.status, body: text });
-    throw new Error(text || `HTTP ${res.status}`);
+    const ct = res.headers.get('content-type') || '';
+    let userMessage = 'Đã có lỗi xảy ra. Vui lòng thử lại.';
+    let rawBody = '';
+    if (ct.includes('application/json')) {
+      try {
+        const json: any = await res.json();
+        rawBody = JSON.stringify(json);
+        const msg = json.message || json.error || json.detail;
+        if (msg && typeof msg === 'string') {
+          userMessage = msg;
+        } else if (json.status && typeof json.status === 'number') {
+          userMessage = `Yêu cầu thất bại (mã ${json.status})`;
+        }
+      } catch {
+        // fallback to text below
+      }
+    }
+    if (!rawBody) {
+      const text = await res.text().catch(()=> "");
+      rawBody = text;
+      if (text && text.length < 200) {
+        // Nếu backend trả message ngắn gọn thì dùng luôn
+        userMessage = text;
+      } else {
+        userMessage = `Yêu cầu thất bại (HTTP ${res.status})`;
+      }
+    }
+    console.error('API error', { path, status: res.status, body: rawBody });
+    throw new Error(userMessage);
   }
   const ct = res.headers.get('content-type') || '';
   if (ct.includes('application/json')) return res.json();

@@ -23,6 +23,7 @@ export default function Orders({ api, can }: { api: ReturnType<typeof useApi>, c
   React.useEffect(()=>{ if (open) reloadModels(); }, [open]);
   const [addModelOpen, setAddModelOpen] = React.useState(false);
   const [newModel, setNewModel] = React.useState<{ model: string; brand: string; price: number | '' }>({ model: '', brand: 'DemoBrand', price: '' });
+  const today = new Date().toISOString().slice(0,10);
 
   return <div className="space-y-4">
     <div className="flex items-center justify-between">
@@ -92,6 +93,7 @@ export default function Orders({ api, can }: { api: ReturnType<typeof useApi>, c
           <tr className="text-left text-gray-600">
             <th className="p-2">Số PO</th>
             <th className="p-2">Trạng thái</th>
+            <th className="p-2">Ngày tạo</th>
             <th className="p-2">Ngày dự kiến</th>
             <th className="p-2 hidden md:table-cell">Ghi chú</th>
             <th className="p-2">Thao tác</th>
@@ -117,6 +119,7 @@ export default function Orders({ api, can }: { api: ReturnType<typeof useApi>, c
             <tr key={o.id} className="border-t">
               <td className="p-2 font-mono">{o.orderNo ?? o.order_no ?? `#${o.id}`}</td>
               <td className="p-2"><Badge className="bg-gray-100">{o.status ?? ''}</Badge></td>
+              <td className="p-2">{(o.createdAt ?? o.created_at ?? '').toString().split('T')[0]}</td>
               <td className="p-2">{(o.etaAtDealer ?? o.eta_at_dealer ?? '').toString().split('T')[0]}</td>
               <td className="p-2 hidden md:table-cell">{o.note ?? ''}</td>
               <td className="p-2 space-x-2">
@@ -145,7 +148,13 @@ export default function Orders({ api, can }: { api: ReturnType<typeof useApi>, c
             <input className={`w-full rounded-xl border p-2 ${formErr && (!form.order_no || !form.order_no.trim()) ? 'border-red-500' : ''}`} placeholder="PO-2025-001" value={form.order_no} onChange={e=>setForm({...form, order_no: e.target.value})} />
             {formErr && (!form.order_no || !form.order_no.trim()) && <div className="mt-1 text-xs text-red-600">Vui lòng nhập số PO</div>}
           </div>
-          <input className="w-full rounded-xl border p-2" type="date" value={form.eta_at_dealer?.split('T')[0] ?? ''} onChange={e=>setForm({...form, eta_at_dealer: e.target.value ? new Date(e.target.value).toISOString() : ''})} />
+          <input
+            className="w-full rounded-xl border p-2"
+            type="date"
+            min={today}
+            value={form.eta_at_dealer?.split('T')[0] ?? ''}
+            onChange={e=>setForm({...form, eta_at_dealer: e.target.value ? new Date(e.target.value).toISOString() : ''})}
+          />
           <input className="w-full rounded-xl border p-2 col-span-2" placeholder="Ghi chú" value={form.note ?? ''} onChange={e=>setForm({...form, note: e.target.value})} />
         </div>
         <div className="grid grid-cols-3 gap-3">
