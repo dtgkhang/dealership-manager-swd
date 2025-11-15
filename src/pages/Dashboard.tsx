@@ -1,11 +1,11 @@
 import React from "react";
-import { Card, StatCard } from "../components/ui";
+import { Card, StatCard, Button } from "../components/ui";
 import { SimpleDonut, SimpleBar } from "../components/charts";
 import type { VehicleStatus } from "../lib/types";
 import { useReloadable } from "../hooks/useReloadable";
 import { useApi } from "../lib/api";
 
-export default function Dashboard({ api, role }: { api: ReturnType<typeof useApi>, role?: 'MANAGER' | 'STAFF' | null }) {
+export default function Dashboard({ api, role, onNavigate }: { api: ReturnType<typeof useApi>, role?: 'MANAGER' | 'STAFF' | null; onNavigate?: (tab: string) => void }) {
   const { data: vehicles } = useReloadable(api.listVehicles, []);
   const { data: deliveries } = useReloadable(api.listDeliveries, []);
   const { data: po } = useReloadable<any[]>(api.listOrders, []);
@@ -46,6 +46,10 @@ export default function Dashboard({ api, role }: { api: ReturnType<typeof useApi
 
   const customerRows: any[] = ((customerOrders as any[]) ?? []);
   const staffPendingOrders = customerRows.filter(o => String(o.status || '').toUpperCase() === 'PENDING').length;
+  const customerByStatus = ['PENDING','COMPLETED','CANCELLED'].map(st => ({
+    label: st,
+    value: customerRows.filter(o => String(o.status || '').toUpperCase() === st).length,
+  }));
 
   return (
     <div className="space-y-4">
@@ -68,8 +72,11 @@ export default function Dashboard({ api, role }: { api: ReturnType<typeof useApi
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        {isManager && (
-          <Card title="PO theo trạng thái">
+        {isManager ? (
+          <Card
+            title="PO theo trạng thái"
+            actions={onNavigate ? <Button className="px-2 py-1 text-xs" variant="secondary" onClick={()=>onNavigate("orders")}>Xem PO</Button> : undefined}
+          >
             <div className="flex items-center gap-6">
               <SimpleDonut data={poByStatus} />
               <div className="space-y-1 text-sm">
@@ -83,9 +90,30 @@ export default function Dashboard({ api, role }: { api: ReturnType<typeof useApi
               </div>
             </div>
           </Card>
+        ) : (
+          <Card
+            title="Đơn khách theo trạng thái"
+            actions={onNavigate ? <Button className="px-2 py-1 text-xs" variant="secondary" onClick={()=>onNavigate("customer-orders")}>Xem đơn khách</Button> : undefined}
+          >
+            <div className="flex items-center gap-6">
+              <SimpleDonut data={customerByStatus} />
+              <div className="space-y-1 text-sm">
+                {customerByStatus.map((d, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: ["#2563eb","#16a34a","#ef4444"][i%3] }} />
+                    <span className="text-gray-600 w-28">{d.label}</span>
+                    <span className="font-medium">{d.value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </Card>
         )}
 
-        <Card title="Tồn kho theo trạng thái">
+        <Card
+          title="Tồn kho theo trạng thái"
+          actions={onNavigate ? <Button className="px-2 py-1 text-xs" variant="secondary" onClick={()=>onNavigate("inventory")}>Xem kho xe</Button> : undefined}
+        >
           <div className="flex items-end justify-between">
             <SimpleBar data={vehBars} />
             <div className="space-y-1 text-sm text-right">
@@ -96,7 +124,18 @@ export default function Dashboard({ api, role }: { api: ReturnType<typeof useApi
           </div>
         </Card>
 
-        <Card title="Doanh thu 7 ngày">
+        <Card
+          title="Doanh thu 7 ngày"
+          actions={onNavigate ? (
+            <Button
+              className="px-2 py-1 text-xs"
+              variant="secondary"
+              onClick={()=>onNavigate(isManager ? "deliveries" : "customer-orders")}
+            >
+              {isManager ? "Xem phiếu giao" : "Xem đơn khách"}
+            </Button>
+          ) : undefined}
+        >
           <div className="flex items-end justify-between">
             <SimpleBar data={revenueByDay} color="#16a34a" />
             <div className="space-y-1 text-sm text-right">

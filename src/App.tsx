@@ -149,7 +149,7 @@ export default function App(){
         </header>
 
         <main key={logged ? 'auth' : 'guest'} className="space-y-4">
-          {tab==="dashboard" && <Dashboard api={api} role={role} />}
+          {tab==="dashboard" && <Dashboard api={api} role={role} onNavigate={setTab} />}
           {tab==="orders" && <Orders api={api} can={can} />}
           {tab==="inventory" && <Inventory api={api} can={can} />}
           {backendMode && tab==="customer-orders" && (
