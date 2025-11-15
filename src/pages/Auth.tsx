@@ -55,7 +55,7 @@ export default function Auth({ onSuccess }: { onSuccess: () => void }) {
           )}
           <input className="w-full rounded-xl border p-2" placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} />
           <input className="w-full rounded-xl border p-2" type="password" placeholder="Mật khẩu" value={password} onChange={e=>setPassword(e.target.value)} />
-          <Button className="w-full bg-black text-white" onClick={submit} disabled={loading}>
+          <Button className="w-full" variant="primary" onClick={submit} disabled={loading}>
             {loading ? 'Đang xử lý…' : (mode==='login' ? 'Đăng nhập' : 'Tạo tài khoản')}
           </Button>
         </div>
@@ -63,4 +63,3 @@ export default function Auth({ onSuccess }: { onSuccess: () => void }) {
     </div>
   );
 }
-
