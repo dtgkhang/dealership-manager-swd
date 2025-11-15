@@ -33,6 +33,7 @@ export default function App(){
   const [authMode, setAuthMode] = React.useState<'login'|'register'>('login');
   const [name, setName] = React.useState("");
   const [roleId, setRoleId] = React.useState<number>(1);
+  const [deliveryOrderId, setDeliveryOrderId] = React.useState<number | null>(null);
 
   React.useEffect(()=>{
     // cập nhật role theo token sau khi login/logout
@@ -121,10 +122,26 @@ export default function App(){
           {tab==="dashboard" && <Dashboard api={api} role={role} />}
           {tab==="orders" && <Orders api={api} can={can} />}
           {tab==="inventory" && <Inventory api={api} can={can} />}
-          {backendMode && tab==="customer-orders" && <CustomerOrders api={api} can={can} />}
+          {backendMode && tab==="customer-orders" && (
+            <CustomerOrders
+              api={api}
+              can={can}
+              onCreateDelivery={(orderId) => {
+                setDeliveryOrderId(orderId);
+                setTab("deliveries");
+              }}
+            />
+          )}
           {tab==="vouchers" && <Vouchers api={api} can={can} />}
           {backendMode && tab==="accounts" && <Accounts api={api} />}
-          {tab==="deliveries" && <Deliveries api={api} can={can} />}
+          {tab==="deliveries" && (
+            <Deliveries
+              api={api}
+              can={can}
+              initialOrderId={deliveryOrderId}
+              onInitialOrderHandled={()=> setDeliveryOrderId(null)}
+            />
+          )}
           {tab==="guide" && <Guide />}
         </main>
       </div>

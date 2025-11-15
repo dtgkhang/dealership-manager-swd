@@ -6,7 +6,15 @@ import { currency } from "../lib/utils";
 import { formatDate, formatDateTime } from "../lib/format";
 import { getRoleFromToken } from "../lib/api";
 
-export default function CustomerOrders({ api, can }: { api: ReturnType<typeof useApi>, can: (p:string)=>boolean }) {
+export default function CustomerOrders({
+  api,
+  can,
+  onCreateDelivery,
+}: {
+  api: ReturnType<typeof useApi>;
+  can: (p: string) => boolean;
+  onCreateDelivery?: (orderId: number) => void;
+}) {
   const { loading, data, error, reload } = useReloadable<any[]>((api as any).listCustomerOrders, []);
   const [q, setQ] = React.useState("");
   const { data: models } = useReloadable<any[]>(api.listModels, []);
@@ -25,6 +33,7 @@ export default function CustomerOrders({ api, can }: { api: ReturnType<typeof us
   const [staffQ, setStaffQ] = React.useState<string>("");
   const [advancedOpen, setAdvancedOpen] = React.useState(false);
   const isManager = getRoleFromToken() === 'MANAGER';
+  const [detail, setDetail] = React.useState<any | null>(null);
 
   const modelById = React.useMemo(()=> new Map(((models ?? []) as any[]).map((m: any) => [m.id, m])), [models]);
 
@@ -113,10 +122,11 @@ export default function CustomerOrders({ api, can }: { api: ReturnType<typeof us
             <th className="p-2 hidden md:table-cell">Giảm</th>
             <th className="p-2">Sau KM</th>
             <th className="p-2">Trạng thái</th>
+            <th className="p-2">Thao tác</th>
           </tr>
         </thead>
         <tbody>
-          {loading ? <tr><td className="p-2" colSpan={9}>Đang tải…</td></tr> : ((data as any[]) ?? []).filter((o:any)=>{
+          {loading ? <tr><td className="p-2" colSpan={11}>Đang tải…</td></tr> : ((data as any[]) ?? []).filter((o:any)=>{
             const s=(q||"").toLowerCase();
             if (status && String(o.status||'') !== status) return false;
             // created range
@@ -136,7 +146,7 @@ export default function CustomerOrders({ api, can }: { api: ReturnType<typeof us
             const model = modelById.get(o.vehicleId)?.model ?? o.vehicleModel ?? '';
             return (String(o.customerInfo ?? '').toLowerCase().includes(s) || String(model).toLowerCase().includes(s));
           }).map((o: any) => (
-            <tr key={o.id} className="border-t">
+            <tr key={o.id} className="border-t hover:bg-gray-50 cursor-pointer" onClick={()=>setDetail(o)}>
               <td className="p-2">#{o.id}</td>
               <td className="p-2">{formatDateTime(o.createdAt)}</td>
               <td className="p-2">{o.customerInfo ?? ''}</td>
@@ -147,6 +157,22 @@ export default function CustomerOrders({ api, can }: { api: ReturnType<typeof us
               <td className="p-2 hidden md:table-cell">{currency(Number(o.discountApplied || 0))}</td>
               <td className="p-2 font-semibold">{currency(Number(o.priceAfter || o.price || 0))}</td>
               <td className="p-2">{o.status ?? ''}</td>
+              <td className="p-2 space-x-2">
+                {onCreateDelivery && can("DELIVERY.CREATE") && String(o.status || '').toUpperCase() === 'PENDING' && (
+                  <Button
+                    variant="success"
+                    onClick={(e: React.MouseEvent<HTMLButtonElement>)=>{ e.stopPropagation(); onCreateDelivery(o.id); }}
+                  >
+                    Lập phiếu giao
+                  </Button>
+                )}
+                <Button
+                  variant="secondary"
+                  onClick={(e: React.MouseEvent<HTMLButtonElement>)=>{ e.stopPropagation(); printOrderInvoice(o); }}
+                >
+                  In hóa đơn
+                </Button>
+              </td>
             </tr>
           ))}
         </tbody>
@@ -239,5 +265,83 @@ export default function CustomerOrders({ api, can }: { api: ReturnType<typeof us
         </div>
       </div>
     </Modal>
+
+    <Modal open={!!detail} onClose={()=>setDetail(null)} title={`Chi tiết đơn #${detail?.id ?? ""}`}>
+      {detail && (
+        <div className="space-y-2 text-sm">
+          <div className="grid grid-cols-2 gap-2">
+            <div><span className="text-gray-500">Khách hàng:</span> <span className="font-medium">{detail.customerInfo ?? ''}</span></div>
+            <div><span className="text-gray-500">Nhân viên:</span> <span className="font-medium">{detail.username ?? ''}</span></div>
+            <div><span className="text-gray-500">Mẫu xe:</span> <span className="font-medium">{detail.vehicleModel ?? (modelById.get(detail.vehicleId)?.model ?? detail.vehicleId)}</span></div>
+            <div><span className="text-gray-500">Trạng thái:</span> <span className="font-medium">{detail.status ?? ''}</span></div>
+            <div><span className="text-gray-500">Ngày tạo:</span> <span className="font-medium">{formatDateTime(detail.createdAt)}</span></div>
+            <div><span className="text-gray-500">Dự kiến giao:</span> <span className="font-medium">{formatDate(detail.deliveryDate)}</span></div>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div><span className="text-gray-500">Giá trước KM:</span> <span className="font-medium">{currency(Number(detail.price || 0))}</span></div>
+            <div><span className="text-gray-500">Giảm giá:</span> <span className="font-medium">{currency(Number(detail.discountApplied || 0))}</span></div>
+            <div><span className="text-gray-500">Giá sau KM:</span> <span className="font-semibold">{currency(Number(detail.priceAfter || detail.price || 0))}</span></div>
+            <div><span className="text-gray-500">Voucher:</span> <span className="font-medium">{detail.voucherCode ?? 'Không áp dụng'}</span></div>
+          </div>
+          <div className="flex justify-end gap-2 pt-3">
+            <Button onClick={()=>setDetail(null)}>Đóng</Button>
+            <Button variant="primary" onClick={()=>printOrderInvoice(detail)}>In hóa đơn</Button>
+          </div>
+        </div>
+      )}
+    </Modal>
   </div>;
+}
+
+function printOrderInvoice(o: any) {
+  if (typeof window === 'undefined') return;
+  const win = window.open('', '_blank', 'width=800,height=900');
+  if (!win) return;
+  const doc = win.document;
+  const created = o.createdAt ? String(o.createdAt).toString().replace('T', ' ').substring(0, 19) : '';
+  const delivery = o.deliveryDate ? String(o.deliveryDate).toString().substring(0, 10) : '';
+  const price = Number(o.price || 0);
+  const discount = Number(o.discountApplied || 0);
+  const after = Number(o.priceAfter || o.price || 0);
+  doc.write(`<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Hóa đơn đơn hàng #${o.id}</title>
+    <style>
+      body { font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 24px; }
+      h1 { font-size: 20px; margin-bottom: 4px; }
+      h2 { font-size: 16px; margin-top: 24px; margin-bottom: 8px; }
+      table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+      td, th { padding: 6px 4px; border-bottom: 1px solid #e5e7eb; font-size: 13px; text-align: left; }
+      .right { text-align: right; }
+      .muted { color: #6b7280; font-size: 12px; }
+    </style>
+  </head>
+  <body>
+    <h1>Hóa đơn đơn hàng #${o.id}</h1>
+    <div class="muted">Ngày tạo: ${created}</div>
+    <h2>Thông tin khách hàng</h2>
+    <table>
+      <tr><td>Khách hàng</td><td>${o.customerInfo ?? ''}</td></tr>
+      <tr><td>Nhân viên</td><td>${o.username ?? ''}</td></tr>
+    </table>
+    <h2>Thông tin xe</h2>
+    <table>
+      <tr><td>Mẫu xe</td><td>${o.vehicleModel ?? o.vehicleId ?? ''}</td></tr>
+      <tr><td>Dự kiến giao</td><td>${delivery}</td></tr>
+      <tr><td>Trạng thái</td><td>${o.status ?? ''}</td></tr>
+    </table>
+    <h2>Thanh toán</h2>
+    <table>
+      <tr><td>Giá trước khuyến mãi</td><td class="right">${price.toLocaleString('vi-VN')} đ</td></tr>
+      <tr><td>Giảm giá</td><td class="right">- ${discount.toLocaleString('vi-VN')} đ</td></tr>
+      <tr><td>Giá sau khuyến mãi</td><td class="right"><strong>${after.toLocaleString('vi-VN')} đ</strong></td></tr>
+      <tr><td>Voucher</td><td class="right">${o.voucherCode ?? 'Không áp dụng'}</td></tr>
+    </table>
+  </body>
+</html>`);
+  doc.close();
+  win.focus();
+  setTimeout(() => win.print(), 300);
 }

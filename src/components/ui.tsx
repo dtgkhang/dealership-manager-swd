@@ -2,7 +2,7 @@ import React from "react";
 import { clsx } from "../lib/utils";
 
 type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost' | 'success' | 'info' | 'warning';
-export const Button = ({ children, onClick, className="", disabled=false, variant='secondary' }: { children: React.ReactNode; onClick?: ()=>void; className?: string; disabled?: boolean; variant?: ButtonVariant; }) => {
+export const Button = ({ children, onClick, className="", disabled=false, variant='secondary' }: { children: React.ReactNode; onClick?: React.MouseEventHandler<HTMLButtonElement>; className?: string; disabled?: boolean; variant?: ButtonVariant; }) => {
   const base = "rounded-xl px-3 py-2 text-sm font-medium shadow border transition hover:shadow-md active:shadow disabled:opacity-50 focus-visible:outline-none";
   const styles: Record<ButtonVariant, string> = {
     primary: "bg-black text-white border-black hover:bg-gray-900 active:bg-gray-800 focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2",
