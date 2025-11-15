@@ -64,9 +64,9 @@ export default function App(){
 
   // Lightweight badges for sidebar (backend mode only)
   const isManager = role === 'MANAGER';
-  const { data: deliveries } = backendMode ? useReloadable<any[]>(api.listDeliveries, [api, role]) : { data: null } as any;
-  const { data: customerOrders } = backendMode ? useReloadable<any[]>((api as any).listCustomerOrders, [api, role]) : { data: null } as any;
-  const { data: po } = backendMode ? useReloadable<any[]>(api.listOrders, [api, role]) : { data: null } as any;
+  const { data: deliveries } = backendMode ? useReloadable<any[]>(() => api.listDeliveries(), [role]) : { data: null } as any;
+  const { data: customerOrders } = backendMode ? useReloadable<any[]>(() => (api as any).listCustomerOrders(), [role]) : { data: null } as any;
+  const { data: po } = backendMode ? useReloadable<any[]>(() => api.listOrders(), [role]) : { data: null } as any;
   const pendingDeliveries = ((deliveries as any[]) ?? []).filter(d => {
     const s = String(d.status || '').toUpperCase();
     return s !== 'DELIVERED' && s !== 'COMPLETED' && s !== 'CANCELLED';
